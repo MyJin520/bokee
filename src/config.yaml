@@ -15,3 +15,14 @@ db:
   max-idle-conn: 10        # 最大空闲连接
   max-open-conn: 100       # 最大连接数
   conn-max-life-time: 1    # 连接最大生命周期（单位：小时）
+
+
+log:
+  level: info        # debug/info/warn/error
+  format: console    # json/console
+  output: file       # stdout/file
+  file-path: ./logs
+  max-size: 100      # 单个日志文件最大大小(MB)
+  max-backups: 10     # 保留的旧日志文件最大数量
+  max-age: 30        # 保留旧日志文件的最大天数
+  compress: true     # 是否压缩
