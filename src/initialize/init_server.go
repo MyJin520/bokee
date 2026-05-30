@@ -12,4 +12,5 @@ func Init() {
 	}
 	initLogger(global.Config)
 	initDb(global.Config)
+	GinServerInit(global.Config.System)
 }

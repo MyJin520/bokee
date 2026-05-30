@@ -2,7 +2,7 @@
 system:
   db-type: mysql       # mysql / postgres
   oss-type: local      # 存储类型
-  addr: 8080          # 服务端口
+  addr: localhost:9999          # 服务端口
 
 # 数据库通用配置
 db:
