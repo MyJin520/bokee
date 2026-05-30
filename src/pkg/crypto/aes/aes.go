@@ -61,10 +61,10 @@ func EncryptToBase64(origData, key []byte) (string, error) {
 }
 
 // Decrypt 使用 AES-CBC 模式对密文进行解密。
-// 参数 crypted: 待解密的密文字节切片。
+// 参数 encrypted: 待解密的密文字节切片。
 // 参数 key: 解密密钥，必须与加密时使用的密钥相同。
 // 返回值: 解密后的明文字节切片；若密钥无效或数据被篡改则返回错误。
-func Decrypt(crypted, key []byte) ([]byte, error) {
+func Decrypt(encrypted, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -72,8 +72,8 @@ func Decrypt(crypted, key []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
-	origData := make([]byte, len(crypted))
-	blockMode.CryptBlocks(origData, crypted)
+	origData := make([]byte, len(encrypted))
+	blockMode.CryptBlocks(origData, encrypted)
 	origData = PKCS5UnPadding(origData)
 	return origData, nil
 }
