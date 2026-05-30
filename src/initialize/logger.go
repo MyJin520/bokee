@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"gin-admin/config"
 	"gin-admin/global"
-	"os"
-	"time"
-
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"os"
+	"strings"
 )
 
 func initLogger(cfg *config.Config) {
@@ -20,20 +19,70 @@ func initLogger(cfg *config.Config) {
 	}
 }
 
-// 定义日志分级配置：文件名 + 对应最低输出级别
+// levelLogger 用于按级别拆分日志文件
 type levelLogger struct {
 	level zapcore.Level
 	name  string
 }
 
 func NewLogger(logConfig config.LogConfig) (*zap.Logger, error) {
-	// 1. 解析日志级别
-	var level zapcore.Level
-	if err := level.UnmarshalText([]byte(logConfig.Level)); err != nil {
-		level = zapcore.InfoLevel
+	globalLevel := parseLogLevel(logConfig.Level)
+	logDir := logConfig.FilePath
+
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return nil, fmt.Errorf("创建日志目录失败: %w", err)
 	}
 
-	// 2. 编码器配置（保留原格式：json/console）
+	encoder := newEncoder(logConfig.Format)
+
+	var cores []zapcore.Core
+
+	switch strings.ToLower(logConfig.Output) {
+	case "stdout":
+		cores = append(cores, newStdoutCore(encoder, globalLevel))
+	case "file":
+		fileCores := newFileCores(logConfig, encoder, globalLevel, logDir)
+		cores = append(cores, fileCores...)
+	case "both":
+		cores = append(cores, newStdoutCore(encoder, globalLevel))
+		fileCores := newFileCores(logConfig, encoder, globalLevel, logDir)
+		cores = append(cores, fileCores...)
+	default:
+		return nil, fmt.Errorf("不支持的输出类型: %s (可选: stdout/file/both)", logConfig.Output)
+	}
+
+	if len(cores) == 0 {
+		return nil, fmt.Errorf("未能创建任何日志核心(Core)")
+	}
+
+	core := zapcore.NewTee(cores...)
+	logger := zap.New(core, zap.AddCaller())
+
+	return logger, nil
+}
+
+// parseLogLevel 将字符串日志级别转换为 zapcore.Level
+func parseLogLevel(level string) zapcore.Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return zapcore.DebugLevel
+	case "info":
+		return zapcore.InfoLevel
+	case "warn", "warning":
+		return zapcore.WarnLevel
+	case "error":
+		return zapcore.ErrorLevel
+	case "fatal":
+		return zapcore.FatalLevel
+	case "panic":
+		return zapcore.PanicLevel
+	default:
+		return zapcore.InfoLevel
+	}
+}
+
+// newEncoder 根据格式创建编码器
+func newEncoder(format string) zapcore.Encoder {
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
 		LevelKey:       "level",
@@ -47,58 +96,52 @@ func NewLogger(logConfig config.LogConfig) (*zap.Logger, error) {
 		EncodeDuration: zapcore.SecondsDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
-	var encoder zapcore.Encoder
-	if logConfig.Format == "json" {
-		encoder = zapcore.NewJSONEncoder(encoderConfig)
-	} else {
-		encoder = zapcore.NewConsoleEncoder(encoderConfig)
-	}
 
-	// 3. 生成【按天】的日志目录：logs/2026-05-30
-	today := time.Now().Format("2006-01-02")
-	logDir := fmt.Sprintf("logs/%s", today)
-	// 自动创建目录（不存在则创建）
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return nil, fmt.Errorf("创建日志目录失败: %w", err)
+	if strings.ToLower(format) == "json" {
+		return zapcore.NewJSONEncoder(encoderConfig)
 	}
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
 
-	// 4. 定义分级日志规则（行业标准：高等级日志只输出对应及以上级别）
+// newStdoutCore 创建标准输出 Core
+func newStdoutCore(encoder zapcore.Encoder, level zapcore.Level) zapcore.Core {
+	return zapcore.NewCore(
+		encoder,
+		zapcore.AddSync(os.Stdout),
+		level,
+	)
+}
+
+// newFileCores 创建文件输出 Cores（按级别分文件）
+func newFileCores(logConfig config.LogConfig, encoder zapcore.Encoder, globalLevel zapcore.Level, logDir string) []zapcore.Core {
 	levelLoggers := []levelLogger{
-		{zapcore.DebugLevel, "debug"}, // 所有日志
-		{zapcore.InfoLevel, "info"},   // info及以上
-		{zapcore.WarnLevel, "warn"},   // warn及以上
-		{zapcore.ErrorLevel, "error"}, // 仅error
+		{zapcore.DebugLevel, "debug"},
+		{zapcore.InfoLevel, "info"},
+		{zapcore.WarnLevel, "warn"},
+		{zapcore.ErrorLevel, "error"},
 	}
 
 	var cores []zapcore.Core
-	// 5. 为每个级别创建独立的日志写入器（带切割）
 	for _, ll := range levelLoggers {
-		// 日志文件完整路径
-		logFilePath := fmt.Sprintf("%s/%s.log", logDir, ll.name)
-
-		// 复用lumberjack实现日志切割/备份/压缩
-		writer := &lumberjack.Logger{
-			Filename:   logFilePath,
-			MaxSize:    logConfig.MaxSize,    // 单个文件最大大小(MB)
-			MaxBackups: logConfig.MaxBackups, // 最大备份数
-			MaxAge:     logConfig.MaxAge,     // 保留天数
-			Compress:   logConfig.Compress,   // 是否压缩
+		if ll.level < globalLevel {
+			continue
 		}
 
-		// 创建带【级别过滤】的core
+		writer := &lumberjack.Logger{
+			Filename:   fmt.Sprintf("%s/%s.log", logDir, ll.name),
+			MaxSize:    logConfig.MaxSize,
+			MaxBackups: logConfig.MaxBackups,
+			MaxAge:     logConfig.MaxAge,
+			Compress:   logConfig.Compress,
+		}
+
 		core := zapcore.NewCore(
 			encoder,
 			zapcore.AddSync(writer),
-			ll.level, // 核心：按级别过滤日志
+			ll.level,
 		)
 		cores = append(cores, core)
 	}
 
-	// 6. 合并所有core（多输出核心）
-	core := zapcore.NewTee(cores...)
-
-	// 7. 修复调用栈错误！！！原skip=2导致显示runtime/asm，改为1即可显示业务代码行号
-	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
-
-	return logger, nil
+	return cores
 }

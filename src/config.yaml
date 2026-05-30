@@ -20,7 +20,7 @@ db:
 log:
   level: info        # debug/info/warn/error
   format: console    # json/console
-  output: file       # stdout/file
+  output: both       # stdout/file/both
   file-path: ./logs
   max-size: 100      # 单个日志文件最大大小(MB)
   max-backups: 10     # 保留的旧日志文件最大数量
