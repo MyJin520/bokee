@@ -3,6 +3,7 @@ package jwtx
 import (
 	"errors"
 	"gin-admin/global"
+	"gin-admin/pkg/timex"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -10,7 +11,7 @@ import (
 
 // CustomClaims 自定义 Claims，可根据业务扩展
 type CustomClaims struct {
-	UserID   string `json:"user_id"`
+	UserID   uint   `json:"user_id"`
 	Username string `json:"user_name"`
 	jwt.RegisteredClaims
 }
@@ -27,16 +28,21 @@ func getJwtSecret() []byte {
 }
 
 // GenerateToken 生成 JWT Token
-func GenerateToken(userID, username string, expireDuration time.Duration) (string, error) {
+func GenerateToken(userID uint, username string) (string, error) {
+	expire, err := timex.ParseDuration(global.Config.JWT.Expire)
+	if err != nil {
+		return "", err
+	}
+
 	claims := CustomClaims{
 		UserID:   userID,
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireDuration)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expire)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
 			Issuer:    global.Config.JWT.Issuer,
-			Subject:   userID,
+			Subject:   username + "kim",
 			Audience:  global.Config.JWT.Audience,
 		},
 	}

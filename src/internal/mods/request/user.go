@@ -12,3 +12,7 @@ type UserLoginReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+type TokenParsingReq struct {
+	Token string `json:"token"`
+}
