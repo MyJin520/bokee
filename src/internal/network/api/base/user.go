@@ -3,6 +3,7 @@ package base
 import (
 	"gin-admin/internal/mods/request"
 	"gin-admin/internal/mods/response"
+	"gin-admin/internal/network/middleware"
 	"gin-admin/internal/network/service/base"
 	"gin-admin/pkg/jwtx"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ type UserApi struct{}
 var userService = &base.UserService{}
 
 func (u *UserApi) Register(c *gin.Context) {
-	var req request.UserRegisterOrEditReq
+	var req request.UserRegisterReq
 	err := c.BindJSON(&req)
 	if err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
@@ -57,4 +58,24 @@ func (u *UserApi) ParseToken(c *gin.Context) {
 		return
 	}
 	response.OkWithData(claims, "解析成功", c)
+}
+
+func (u *UserApi) Edit(c *gin.Context) {
+	var req request.UserEditReq
+	err := c.BindJSON(&req)
+	if err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	userID, _ := middleware.GetUserIDFromContext(c)
+	err = userService.Edit(req, userID)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithMessage("用户编辑成功", c)
+}
+
+func (u *UserApi) Logout(c *gin.Context) {
+	userService.Logout(c)
 }

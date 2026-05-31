@@ -1,6 +1,7 @@
 package router
 
 import (
+	"gin-admin/internal/network/middleware"
 	"gin-admin/internal/network/router/base"
 	"github.com/gin-gonic/gin"
 )
@@ -10,9 +11,12 @@ func Routers() *gin.Engine {
 
 	// 公开路由组
 	publicGroup := engine.Group("/pub")
-	{
-		base.InitUserRouter(publicGroup)
-	}
+
+	// 私有路由组
+	privateGroup := engine.Group("/pri")
+	privateGroup.Use(middleware.AuthMiddleware())
+
+	base.InitUserRouter(publicGroup, privateGroup)
 
 	return engine
 }

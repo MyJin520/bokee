@@ -8,13 +8,14 @@ import (
 	"gin-admin/internal/mods/response"
 	"gin-admin/pkg/crypto/hash"
 	"gin-admin/pkg/jwtx"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type UserService struct{}
 
-func (s *UserService) Register(req request.UserRegisterOrEditReq) error {
+func (s *UserService) Register(req request.UserRegisterReq) error {
 	var count int64
 	global.DB.Model(&basic.User{}).Where("phone = ? OR email = ?", req.Phone, req.Email).Count(&count)
 	if count > 0 {
@@ -81,4 +82,40 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResponse, er
 		Phone:  user.Phone,
 	}
 	return jwtResponse, nil
+}
+
+func (s *UserService) Edit(req request.UserEditReq, uid uint) error {
+	// 构建需要更新的字段映射，只更新非空字段
+	updates := make(map[string]interface{})
+
+	if req.Username != "" {
+		updates["name"] = req.Username
+	}
+	if req.Phone != "" {
+		updates["phone"] = req.Phone
+	}
+	if req.Email != "" {
+		// TODO: 验证邮箱验证码后再允许更新
+		updates["email"] = req.Email
+	}
+	if req.Avatar != "" {
+		updates["avatar"] = req.Avatar
+	}
+
+	if len(updates) == 0 {
+		return errors.New("没有需要更新的字段")
+	}
+
+	result := global.DB.Model(&basic.User{}).Where("id = ?", uid).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("用户不存在或未做任何更改")
+	}
+	return nil
+}
+
+func (s *UserService) Logout(c *gin.Context) {
+
 }

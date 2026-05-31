@@ -7,11 +7,17 @@ import (
 
 var userApi = base.UserApi{}
 
-func InitUserRouter(Router *gin.RouterGroup) {
-	userRouter := Router.Group("/user")
+func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup) {
+	userPublic := publicGroup.Group("/user")
 	{
-		userRouter.POST("register", userApi.Register)        // 注册用户
-		userRouter.POST("login", userApi.Login)              // 登录用户
-		userRouter.POST("token_parsing", userApi.ParseToken) // 解析Token
+		userPublic.POST("/register", userApi.Register)
+		userPublic.POST("/login", userApi.Login)
+	}
+
+	userPrivate := privateGroup.Group("/user")
+	{
+		userPrivate.POST("/edit", userApi.Edit)
+		userPrivate.GET("/logout", userApi.Logout)
+		userPrivate.POST("/token_parsing", userApi.ParseToken)
 	}
 }

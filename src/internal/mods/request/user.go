@@ -1,6 +1,6 @@
 package request
 
-type UserRegisterOrEditReq struct {
+type UserRegisterReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
@@ -15,4 +15,11 @@ type UserLoginReq struct {
 
 type TokenParsingReq struct {
 	Token string `json:"token"`
+}
+
+type UserEditReq struct {
+	Username string `json:"username"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
+	Avatar   string `json:"avatar"`
 }
