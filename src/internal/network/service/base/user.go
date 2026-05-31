@@ -6,7 +6,7 @@ import (
 	"gin-admin/internal/mods/basic"
 	"gin-admin/internal/mods/request"
 	"gin-admin/internal/mods/response"
-	"gin-admin/pkg/crypto/hash"
+	"gin-admin/pkg/cryptox/hash"
 	"gin-admin/pkg/jwtx"
 	"gin-admin/pkg/redisx"
 	"github.com/gin-gonic/gin"
