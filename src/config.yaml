@@ -27,6 +27,17 @@ log:
   max-age: 30        # 保留旧日志文件的最大天数
   compress: true     # 是否压缩
 
+# Redis 配置
+redis:
+  addr: localhost:6379           # 地址（host:port）
+  password: ""                   # 密码（无密码留空）
+  db: 0                          # 数据库编号（0-15）
+  pool-size: 10                  # 连接池大小
+  min-idle-conns: 5              # 最小空闲连接数
+  dial-timeout: 5                # 连接超时（秒）
+  read-timeout: 3                # 读取超时（秒）
+  write-timeout: 3               # 写入超时（秒）
+
 # JWT 配置
 jwt:
   secret: "ac6185d7-b8d0-4646-9dde-d14be1bd55c6"   # 签名密钥
@@ -35,3 +46,5 @@ jwt:
   issuer: "kim-system"           # 签发者
   audience:                      # 受众列表
     - "client"
+
+

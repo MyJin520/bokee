@@ -11,6 +11,7 @@ func Init() {
 		panic("初始化配置文件失败: " + err.Error())
 	}
 	initLogger(global.Config)
+	initRedis(global.Config)
 	initDb(global.Config)
 	GinServerInit(global.Config.System)
 }
