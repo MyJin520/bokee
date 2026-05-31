@@ -1,6 +1,8 @@
 package jwtx
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"gin-admin/global"
 	"gin-admin/pkg/timex"
@@ -27,6 +29,15 @@ func getJwtSecret() []byte {
 	return []byte(global.Config.JWT.Secret)
 }
 
+// generateJTI 生成唯一的 JWT ID（16 字节随机 hex）
+func generateJTI() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
 // GenerateToken 生成 JWT Token
 func GenerateToken(userID uint, username string) (string, error) {
 	expire, err := timex.ParseDuration(global.Config.JWT.Expire)
@@ -34,13 +45,20 @@ func GenerateToken(userID uint, username string) (string, error) {
 		return "", err
 	}
 
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
+
+	now := time.Now()
 	claims := CustomClaims{
 		UserID:   userID,
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expire)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			ID:        jti,
+			ExpiresAt: jwt.NewNumericDate(now.Add(expire)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    global.Config.JWT.Issuer,
 			Subject:   username + "kim",
 			Audience:  global.Config.JWT.Audience,

@@ -31,9 +31,7 @@ func initRedis(cfg *config.Config) {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		global.Log.Warn("Redis 连接失败，将使用降级模式运行", zap.String("addr", cfg.Redis.Addr), zap.Error(err))
-		global.Redis = nil
-		return
+		panic("Redis 连接失败: " + err.Error())
 	}
 
 	global.Redis = client

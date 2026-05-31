@@ -77,5 +77,10 @@ func (u *UserApi) Edit(c *gin.Context) {
 }
 
 func (u *UserApi) Logout(c *gin.Context) {
-	userService.Logout(c)
+	err := userService.Logout(c)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithMessage("登出成功", c)
 }

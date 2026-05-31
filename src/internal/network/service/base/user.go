@@ -1,7 +1,9 @@
 package base
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"gin-admin/global"
 	"gin-admin/internal/mods/basic"
 	"gin-admin/internal/mods/request"
@@ -11,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"strings"
+	"time"
 )
 
 type UserService struct{}
@@ -116,6 +120,52 @@ func (s *UserService) Edit(req request.UserEditReq, uid uint) error {
 	return nil
 }
 
-func (s *UserService) Logout(c *gin.Context) {
+// blacklistKey 生成 token 黑名单 key（SHA256 哈希，兼容旧 token）
+func blacklistKey(tokenString string) string {
+	h := sha256.Sum256([]byte(tokenString))
+	return "gin-admin:token:blacklist:" + fmt.Sprintf("%x", h)
+}
 
+// Logout 用户登出：将当前 token 加入 Redis 黑名单
+func (s *UserService) Logout(c *gin.Context) error {
+	// 1. 从请求头提取 token
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		return errors.New("未提供认证令牌")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return errors.New("认证令牌格式错误")
+	}
+	tokenString := parts[1]
+
+	// 2. 解析 token 获取过期时间
+	claims, err := jwtx.ParseToken(tokenString)
+	if err != nil {
+		return errors.New("无效的认证令牌")
+	}
+
+	// 3. 计算 token 剩余有效期，作为黑名单 TTL
+	remaining := time.Until(claims.ExpiresAt.Time)
+	if remaining <= 0 {
+		return nil // token 已过期，无需处理
+	}
+
+	// 4. 写入 Redis 黑名单（使用 SHA256 哈希做 key，不依赖 jti）
+	if global.Redis != nil {
+		key := blacklistKey(tokenString)
+		err := global.Redis.Set(c, key, "1", remaining).Err()
+		if err != nil {
+			global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
+			return errors.New("登出失败，请稍后重试")
+		}
+	}
+
+	global.Log.Info("用户登出成功",
+		zap.Uint("userID", claims.UserID),
+		zap.String("username", claims.Username),
+		zap.Duration("blacklist_ttl", remaining),
+	)
+	return nil
 }
