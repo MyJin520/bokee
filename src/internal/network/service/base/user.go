@@ -1,15 +1,14 @@
 package base
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"gin-admin/global"
 	"gin-admin/internal/mods/basic"
 	"gin-admin/internal/mods/request"
 	"gin-admin/internal/mods/response"
 	"gin-admin/pkg/crypto/hash"
 	"gin-admin/pkg/jwtx"
+	"gin-admin/pkg/redisx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -120,12 +119,6 @@ func (s *UserService) Edit(req request.UserEditReq, uid uint) error {
 	return nil
 }
 
-// blacklistKey 生成 token 黑名单 key（SHA256 哈希，兼容旧 token）
-func blacklistKey(tokenString string) string {
-	h := sha256.Sum256([]byte(tokenString))
-	return "gin-admin:token:blacklist:" + fmt.Sprintf("%x", h)
-}
-
 // Logout 用户登出：将当前 token 加入 Redis 黑名单
 func (s *UserService) Logout(c *gin.Context) error {
 	// 1. 从请求头提取 token
@@ -152,14 +145,10 @@ func (s *UserService) Logout(c *gin.Context) error {
 		return nil // token 已过期，无需处理
 	}
 
-	// 4. 写入 Redis 黑名单（使用 SHA256 哈希做 key，不依赖 jti）
-	if global.Redis != nil {
-		key := blacklistKey(tokenString)
-		err := global.Redis.Set(c, key, "1", remaining).Err()
-		if err != nil {
-			global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
-			return errors.New("登出失败，请稍后重试")
-		}
+	// 4. 写入 Redis 黑名单
+	if err := redisx.BlacklistToken(c, tokenString, remaining); err != nil {
+		global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
+		return errors.New("登出失败，请稍后重试")
 	}
 
 	global.Log.Info("用户登出成功",

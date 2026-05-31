@@ -1,24 +1,16 @@
 package middleware
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"gin-admin/global"
 	"gin-admin/internal/mods/response"
 	"gin-admin/pkg/jwtx"
+	"gin-admin/pkg/redisx"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
-
-// blacklistKey 生成 token 黑名单 key（使用 SHA256 哈希，不依赖 jti）
-// 这样无论旧 token（无 jti）还是新 token 都能被正确拉黑
-func blacklistKey(tokenString string) string {
-	h := sha256.Sum256([]byte(tokenString))
-	return "gin-admin:token:blacklist:" + fmt.Sprintf("%x", h)
-}
 
 // AuthMiddleware JWT 认证中间件
 func AuthMiddleware() gin.HandlerFunc {
@@ -51,18 +43,15 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查 Redis 黑名单（token 是否已登出）
-		if global.Redis != nil {
-			key := blacklistKey(tokenString)
-			exists, err := global.Redis.Exists(c, key).Result()
-			if err != nil {
-				global.Log.Warn("Redis 黑名单查询失败", zap.String("jti", claims.ID), zap.Error(err))
-				// 查询失败放行，不阻断请求
-			} else if exists > 0 {
-				global.Log.Warn("Token 已被登出", zap.String("jti", claims.ID), zap.Uint("userID", claims.UserID))
-				response.Fail(http.StatusUnauthorized, "令牌已失效，请重新登录", c)
-				c.Abort()
-				return
-			}
+		blocked, err := redisx.IsTokenBlacklisted(c, tokenString)
+		if err != nil {
+			global.Log.Warn("Redis 黑名单查询失败", zap.String("jti", claims.ID), zap.Error(err))
+			// 查询失败放行，不阻断请求
+		} else if blocked {
+			global.Log.Warn("Token 已被登出", zap.String("jti", claims.ID), zap.Uint("userID", claims.UserID))
+			response.Fail(http.StatusUnauthorized, "令牌已失效，请重新登录", c)
+			c.Abort()
+			return
 		}
 
 		// 将用户信息存入 Gin 上下文
