@@ -5,7 +5,7 @@ import (
 	"gin-admin/internal/network/router"
 )
 
-func GinServerInit(systemConfig config.SystemConfig) {
+func ginServerInit(systemConfig config.SystemConfig) {
 	engine := router.Routers()
 	err := engine.Run(systemConfig.Addr)
 	if err != nil {
