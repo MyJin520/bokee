@@ -13,5 +13,6 @@ func Init() {
 	initLogger(global.Config)
 	initRedis(global.Config)
 	initDb(global.Config)
+	initCasbin()
 	GinServerInit(global.Config.System)
 }

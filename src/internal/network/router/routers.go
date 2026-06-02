@@ -15,6 +15,7 @@ func Routers() *gin.Engine {
 	// 私有路由组
 	privateGroup := engine.Group("/pri")
 	privateGroup.Use(middleware.AuthMiddleware())
+	privateGroup.Use(middleware.CasbinMiddleware())
 
 	base.InitUserRouter(publicGroup, privateGroup)
 
