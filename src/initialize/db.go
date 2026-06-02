@@ -1,14 +1,15 @@
 package initialize
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"errors"
 	"fmt"
 	"gin-admin/config"
 	"gin-admin/global"
 	"gin-admin/internal/mods/basic"
 	"gin-admin/pkg/cryptox/hash"
 	db "gin-admin/pkg/gormx"
+	"gin-admin/pkg/randx"
+	"gorm.io/gorm"
 )
 
 func initDb(cfg *config.Config) {
@@ -17,13 +18,12 @@ func initDb(cfg *config.Config) {
 		panic("数据库初始化失败: " + err.Error())
 	}
 	migrateTable()
-	initUser()
+	initRolesAndUser()
 }
 
 // 迁移表结构
 func migrateTable() {
 	err := global.DB.AutoMigrate(
-		// 基础模型
 		&basic.User{},
 		&basic.Role{},
 	)
@@ -32,27 +32,39 @@ func migrateTable() {
 	}
 }
 
-func initUser() {
-	var count int64
-	global.DB.Model(&basic.User{}).Count(&count)
-	if count > 0 {
+// 仅在首次启动时初始化角色和超级管理员
+func initRolesAndUser() {
+	var existingUser basic.User
+	err := global.DB.Where("name = ?", "superAdmin").First(&existingUser).Error
+	if err == nil {
+		global.Log.Info("超级管理员已存在，跳过初始化")
+		return
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		global.Log.Warn(fmt.Sprintf("检查用户是否存在时出错: %v", err))
 		return
 	}
 
-	// 优先使用配置文件中的密码，留空则自动生成随机密码
+	global.Log.Info("检测到空数据库，开始初始化默认角色和管理员...")
+
+	adminRole := basic.Role{
+		RoleName: "超级管理员",
+		RoleCode: 1000,
+		Sort:     1,
+		Status:   "normal",
+		Remark:   "系统内置超级管理员角色",
+	}
+	result := global.DB.Where("role_code = ?", adminRole.RoleCode).FirstOrCreate(&adminRole)
+	if result.Error != nil {
+		panic("初始化默认角色失败: " + result.Error.Error())
+	}
+
 	defaultPwd := global.Config.System.DefaultAdminPassword
 	if defaultPwd == "" {
-		defaultPwd = generateRandomPassword()
-		fmt.Println()
-		fmt.Println("╔══════════════════════════════════════════════════════════╗")
-		fmt.Println("║  未配置 default-admin-password，已自动生成随机密码        ║")
-		fmt.Println("║                                                          ║")
-		fmt.Printf("║  用户名:  superAdmin                                     ║\n")
-		fmt.Printf("║  密  码:  %-46s ║\n", defaultPwd)
-		fmt.Println("║                                                          ║")
-		fmt.Println("║  请登录后立即修改！                                       ║")
-		fmt.Println("╚══════════════════════════════════════════════════════════╝")
-		fmt.Println()
+		defaultPwd = randx.RandomDigitCode(10)
+		global.Log.Info(fmt.Sprintf("默认超级管理员已创建： %s", existingUser.Name))
+		global.Log.Info(fmt.Sprintf("未配置 default-admin-password，已自动生成随机密码: %s", defaultPwd))
+		global.Log.Info(fmt.Sprintf("请登录后立即修改密码: %s", defaultPwd))
 	}
 
 	password, err := hash.GeneratePassword(defaultPwd)
@@ -60,25 +72,22 @@ func initUser() {
 		panic("密码加密失败: " + err.Error())
 	}
 
-	user := &basic.User{
+	newUser := &basic.User{
 		Name:     "superAdmin",
 		Password: password,
 		Status:   "normal",
+		Roles:    []basic.Role{adminRole},
 	}
 
-	// FirstOrCreate 避免多实例同时启动时唯一约束冲突导致 panic
-	result := global.DB.Where(basic.User{Name: "superAdmin"}).FirstOrCreate(user)
-	if result.Error != nil {
-		panic("初始化默认管理员失败: " + result.Error.Error())
+	err = global.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(newUser).Error; err != nil {
+			return fmt.Errorf("创建用户失败: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		panic("初始化超级管理员失败: " + err.Error())
 	}
-	if result.RowsAffected > 0 {
-		global.Log.Info("已创建默认管理员账户（superAdmin）")
-	}
-}
 
-// generateRandomPassword 生成 22 位安全随机密码
-func generateRandomPassword() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return base64.RawURLEncoding.EncodeToString(b)
+	global.Log.Info("✅ 初始化完成：已创建超级管理员账户（superAdmin）并关联超级管理员角色")
 }
