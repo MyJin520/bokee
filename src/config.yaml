@@ -3,7 +3,7 @@ system:
   db-type: mysql       # mysql / postgres
   oss-type: local      # 存储类型
   addr: localhost:9999          # 服务端口
-  default-admin-password: ""    # 初始管理员密码（留空则自动生成随机密码，控制台打印）
+  default-admin-password: "123456"    # 初始管理员密码（留空则自动生成随机密码，控制台打印）
 
 # 数据库通用配置
 db:

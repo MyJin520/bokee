@@ -6,7 +6,7 @@ import (
 
 func Init() {
 	var err error
-	global.Config, err = initLoadConfig("C:\\KimJin\\work\\ideaProject\\gin-admin\\src\\config.yaml")
+	global.Config, err = initLoadConfig("./config.yaml")
 	if err != nil {
 		panic("初始化配置文件失败: " + err.Error())
 	}
