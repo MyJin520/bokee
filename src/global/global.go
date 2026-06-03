@@ -13,3 +13,7 @@ var (
 	Config *config.Config
 	Log    *zap.Logger
 )
+
+const (
+	SuperRoleCode = 888
+)

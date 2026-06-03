@@ -6,7 +6,10 @@ import (
 	"github.com/casbin/casbin/v3"
 	"github.com/casbin/casbin/v3/model"
 	gormadapter "github.com/casbin/gorm-adapter/v3"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -180,4 +183,38 @@ func GetAllRoles() ([][]string, error) {
 		return nil, err
 	}
 	return enforcer.GetGroupingPolicy()
+}
+
+func InitSuperRoleCasbin(engine *gin.Engine) {
+	roleCodeStr := strconv.Itoa(global.SuperRoleCode)
+	enforcer, err := GetEnforcer()
+	if err != nil {
+		global.Log.Error("获取 Casbin 执行器失败", zap.Error(err))
+		return
+	}
+
+	routes := engine.Routes()
+	global.Log.Info(fmt.Sprintf("开始为超级管理员 [%s] 授权 %d 条路由", roleCodeStr, len(routes)))
+
+	policies := make([][]string, 0, len(routes))
+	for _, route := range routes {
+		if strings.HasPrefix(route.Path, "/pub/") {
+			continue
+		}
+		policies = append(policies, []string{roleCodeStr, route.Path, route.Method})
+	}
+
+	if len(policies) > 0 {
+		_, err = enforcer.RemoveFilteredPolicy(0, roleCodeStr)
+		if err != nil {
+			global.Log.Error("移除旧策略失败", zap.Error(err))
+			return
+		}
+		_, err = enforcer.AddPolicies(policies)
+		if err != nil {
+			global.Log.Error("批量添加策略失败", zap.Error(err))
+		} else {
+			global.Log.Info(fmt.Sprintf("超级管理员授权完成，共添加 %d 条策略", len(policies)))
+		}
+	}
 }

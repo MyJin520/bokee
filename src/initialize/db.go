@@ -49,7 +49,7 @@ func initRolesAndUser() {
 
 	adminRole := basic.Role{
 		RoleName: "超级管理员",
-		RoleCode: 1000,
+		RoleCode: uint(global.SuperRoleCode),
 		Sort:     1,
 		Status:   "normal",
 		Remark:   "系统内置超级管理员角色",
