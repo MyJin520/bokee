@@ -57,6 +57,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 将用户信息存入 Gin 上下文
 		c.Set("userID", claims.UserID)
 		c.Set("username", claims.Username)
+		c.Set("roleCodes", claims.RoleCodes)
 
 		c.Next()
 	}
@@ -80,4 +81,14 @@ func GetUsernameFromContext(c *gin.Context) (string, bool) {
 	}
 	name, ok := username.(string)
 	return name, ok
+}
+
+// GetRoleCodesFromContext 从上下文获取当前登录用户的角色标识码列表
+func GetRoleCodesFromContext(c *gin.Context) ([]uint, bool) {
+	roleCodes, exists := c.Get("roleCodes")
+	if !exists {
+		return nil, false
+	}
+	codes, ok := roleCodes.([]uint)
+	return codes, ok
 }

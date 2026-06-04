@@ -13,8 +13,9 @@ import (
 
 // CustomClaims 自定义 Claims，可根据业务扩展
 type CustomClaims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"user_name"`
+	UserID    uint   `json:"user_id"`
+	Username  string `json:"user_name"`
+	RoleCodes []uint `json:"role_codes"`
 	jwt.RegisteredClaims
 }
 
@@ -39,7 +40,7 @@ func generateJTI() (string, error) {
 }
 
 // GenerateToken 生成 JWT Token
-func GenerateToken(userID uint, username string) (string, error) {
+func GenerateToken(userID uint, username string, roleCodes []uint) (string, error) {
 	expire, err := timex.ParseDuration(global.Config.JWT.Expire)
 	if err != nil {
 		return "", err
@@ -52,8 +53,9 @@ func GenerateToken(userID uint, username string) (string, error) {
 
 	now := time.Now()
 	claims := CustomClaims{
-		UserID:   userID,
-		Username: username,
+		UserID:    userID,
+		Username:  username,
+		RoleCodes: roleCodes,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
 			ExpiresAt: jwt.NewNumericDate(now.Add(expire)),

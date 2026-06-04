@@ -48,7 +48,7 @@ func (s *UserService) Register(req request.UserRegisterReq) error {
 
 func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResponse, error) {
 	var user basic.User
-	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").
+	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").Preload("Roles").
 		Where("name = ?", req.Username).
 		First(&user).Error
 
@@ -71,7 +71,12 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResponse, er
 		return nil, errors.New("用户名或密码错误")
 	}
 
-	token, err := jwtx.GenerateToken(user.ID, user.Name)
+	roleCodes := make([]uint, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roleCodes = append(roleCodes, role.RoleCode)
+	}
+
+	token, err := jwtx.GenerateToken(user.ID, user.Name, roleCodes)
 	if err != nil {
 		global.Log.Error("生成Token失败", zap.Error(err), zap.Uint("userID", user.ID))
 		return nil, errors.New("登录失败，请稍后重试")
