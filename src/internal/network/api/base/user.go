@@ -84,3 +84,20 @@ func (u *UserApi) Logout(c *gin.Context) {
 	}
 	response.OkWithMessage("登出成功", c)
 }
+
+// GetAllPriRoles todo 仅管理员访问能访问
+func (u *UserApi) GetAllPriRoles(c *gin.Context) {
+	var page request.PageReq
+	if err := c.ShouldBindQuery(&page); err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	page.Normalize()
+
+	roles, total, err := userService.GetAllPriRoles(page)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithPage(roles, total, page.Page, page.PageSize, "获取角色列表成功", c)
+}

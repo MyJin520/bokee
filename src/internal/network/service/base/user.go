@@ -46,7 +46,7 @@ func (s *UserService) Register(req request.UserRegisterReq) error {
 	return nil
 }
 
-func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResponse, error) {
+func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error) {
 	var user basic.User
 	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").Preload("Roles").
 		Where("name = ?", req.Username).
@@ -82,7 +82,7 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResponse, er
 		return nil, errors.New("登录失败，请稍后重试")
 	}
 
-	jwtResponse := &response.JwtResponse{
+	jwtResponse := &response.JwtResp{
 		Token:  token,
 		Name:   user.Name,
 		Avatar: user.Avatar,
@@ -162,4 +162,34 @@ func (s *UserService) Logout(c *gin.Context) error {
 		zap.Duration("blacklist_ttl", remaining),
 	)
 	return nil
+}
+
+func (s *UserService) GetAllPriRoles(page request.PageReq) ([]response.RoleItemResp, int64, error) {
+	var total int64
+	if err := global.DB.Model(&basic.Role{}).Count(&total).Error; err != nil {
+		global.Log.Error("统计角色总数失败", zap.Error(err))
+		return nil, 0, errors.New("获取角色列表失败，请稍后重试")
+	}
+
+	var roles []basic.Role
+	if err := global.DB.Order("sort ASC").
+		Offset(page.Offset()).
+		Limit(page.PageSize).
+		Find(&roles).Error; err != nil {
+		global.Log.Error("查询角色列表失败", zap.Error(err))
+		return nil, 0, errors.New("获取角色列表失败，请稍后重试")
+	}
+
+	items := make([]response.RoleItemResp, 0, len(roles))
+	for _, role := range roles {
+		items = append(items, response.RoleItemResp{
+			ID:       role.ID,
+			RoleName: role.RoleName,
+			RoleCode: role.RoleCode,
+			Sort:     role.Sort,
+			Status:   role.Status,
+			Remark:   role.Remark,
+		})
+	}
+	return items, total, nil
 }

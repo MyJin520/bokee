@@ -18,6 +18,6 @@ func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup)
 	{
 		userPrivate.POST("/edit", userApi.Edit)
 		userPrivate.GET("/logout", userApi.Logout)
-		userPrivate.POST("/token_parsing", userApi.ParseToken)
+		userPrivate.GET("/get_all_pri_rule", userApi.GetAllPriRoles) // 获取所有私密路由
 	}
 }
