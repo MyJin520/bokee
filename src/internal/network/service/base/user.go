@@ -6,6 +6,7 @@ import (
 	"gin-admin/internal/mods/basic"
 	"gin-admin/internal/mods/request"
 	"gin-admin/internal/mods/response"
+	"gin-admin/pkg/casbinx"
 	"gin-admin/pkg/cryptox/hash"
 	"gin-admin/pkg/jwtx"
 	"gin-admin/pkg/redisx"
@@ -126,7 +127,7 @@ func (s *UserService) Edit(req request.UserEditReq, uid uint) error {
 
 // Logout 用户登出：将当前 token 加入 Redis 黑名单
 func (s *UserService) Logout(c *gin.Context) error {
-	// 1. 从请求头提取 token
+	// 从请求头提取 token
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
 		return errors.New("未提供认证令牌")
@@ -138,19 +139,19 @@ func (s *UserService) Logout(c *gin.Context) error {
 	}
 	tokenString := parts[1]
 
-	// 2. 解析 token 获取过期时间
+	// 解析 token 获取过期时间
 	claims, err := jwtx.ParseToken(tokenString)
 	if err != nil {
 		return errors.New("无效的认证令牌")
 	}
 
-	// 3. 计算 token 剩余有效期，作为黑名单 TTL
+	// 计算 token 剩余有效期，作为黑名单 TTL
 	remaining := time.Until(claims.ExpiresAt.Time)
 	if remaining <= 0 {
 		return nil // token 已过期，无需处理
 	}
 
-	// 4. 写入 Redis 黑名单
+	// 写入 Redis 黑名单
 	if err := redisx.BlacklistToken(c, tokenString, remaining); err != nil {
 		global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
 		return errors.New("登出失败，请稍后重试")
@@ -164,32 +165,32 @@ func (s *UserService) Logout(c *gin.Context) error {
 	return nil
 }
 
-func (s *UserService) GetAllPriRoles(page request.PageReq) ([]response.RoleItemResp, int64, error) {
-	var total int64
-	if err := global.DB.Model(&basic.Role{}).Count(&total).Error; err != nil {
-		global.Log.Error("统计角色总数失败", zap.Error(err))
-		return nil, 0, errors.New("获取角色列表失败，请稍后重试")
+func (s *UserService) GetAllPriRoles(page request.PageReq) ([]response.PriRouteResp, int64, error) {
+	// 从 Casbin 缓存/表读取私有路由策略
+	policies, err := casbinx.GetPrivateRoutes()
+	if err != nil {
+		return nil, 0, err
 	}
 
-	var roles []basic.Role
-	if err := global.DB.Order("sort ASC").
-		Offset(page.Offset()).
-		Limit(page.PageSize).
-		Find(&roles).Error; err != nil {
-		global.Log.Error("查询角色列表失败", zap.Error(err))
-		return nil, 0, errors.New("获取角色列表失败，请稍后重试")
-	}
-
-	items := make([]response.RoleItemResp, 0, len(roles))
-	for _, role := range roles {
-		items = append(items, response.RoleItemResp{
-			ID:       role.ID,
-			RoleName: role.RoleName,
-			RoleCode: role.RoleCode,
-			Sort:     role.Sort,
-			Status:   role.Status,
-			Remark:   role.Remark,
+	// 转换为响应结构体
+	var routes []response.PriRouteResp
+	for _, p := range policies {
+		routes = append(routes, response.PriRouteResp{
+			Path:   p[1], // obj
+			Method: p[2], // act
 		})
 	}
-	return items, total, nil
+
+	// 内存分页
+	total := int64(len(routes))
+	start := page.Offset()
+	if start > int(total) {
+		return []response.PriRouteResp{}, total, nil
+	}
+	end := start + page.PageSize
+	if end > int(total) {
+		end = int(total)
+	}
+
+	return routes[start:end], total, nil
 }

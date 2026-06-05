@@ -8,12 +8,7 @@ type JwtResp struct {
 	Phone  string `json:"phone"`
 }
 
-// RoleItemResp  角色列表项
-type RoleItemResp struct {
-	ID       uint   `json:"id"`
-	RoleName string `json:"roleName"`
-	RoleCode uint   `json:"roleCode"`
-	Sort     int    `json:"sort"`
-	Status   string `json:"status"`
-	Remark   string `json:"remark"`
+type PriRouteResp struct {
+	Path   string `json:"path"`   // 路由路径
+	Method string `json:"method"` // 请求方法
 }

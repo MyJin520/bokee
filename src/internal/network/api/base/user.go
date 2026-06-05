@@ -94,10 +94,10 @@ func (u *UserApi) GetAllPriRoles(c *gin.Context) {
 	}
 	page.Normalize()
 
-	roles, total, err := userService.GetAllPriRoles(page)
+	routes, total, err := userService.GetAllPriRoles(page)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithPage(roles, total, page.Page, page.PageSize, "获取角色列表成功", c)
+	response.OkWithPage(routes, total, page.Page, page.PageSize, "获取私有路由列表成功", c)
 }
