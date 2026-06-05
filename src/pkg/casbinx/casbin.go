@@ -221,13 +221,11 @@ func InitSuperRoleCasbin(engine *gin.Engine) {
 
 // GetPrivateRoutes 获取所有私有路由策略
 func GetPrivateRoutes() ([][]string, error) {
-	enforcer, err := GetEnforcer()
+	allPolicies, err := GetAllPolicies()
 	if err != nil {
 		return nil, err
 	}
-
 	var privateRoutes [][]string
-	allPolicies, _ := enforcer.GetPolicy()
 	for _, policy := range allPolicies {
 		// policy 结构: [sub, obj, act]
 		if len(policy) >= 3 && !strings.HasPrefix(policy[1], "/pub/") {
