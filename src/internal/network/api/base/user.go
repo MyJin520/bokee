@@ -147,3 +147,19 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 	}
 	response.OkWithData(user, "获取用户信息成功", c)
 }
+
+func (u *UserApi) List(c *gin.Context) {
+	var req request.UserListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	req.Normalize()
+
+	users, total, err := userService.List(req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithPage(users, total, req.Page, req.PageSize, "获取用户列表成功", c)
+}

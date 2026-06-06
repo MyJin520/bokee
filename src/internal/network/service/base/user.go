@@ -308,6 +308,37 @@ func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 	})
 }
 
+func (s *UserService) List(req request.UserListReq) ([]basic.User, int64, error) {
+	query := global.DB.Model(&basic.User{})
+
+	if req.Name != "" {
+		query = query.Where("name LIKE ?", "%"+req.Name+"%")
+	}
+	if req.Phone != "" {
+		query = query.Where("phone LIKE ?", "%"+req.Phone+"%")
+	}
+	if req.Email != "" {
+		query = query.Where("email LIKE ?", "%"+req.Email+"%")
+	}
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	var total int64
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var users []basic.User
+	err = query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&users).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
 func (s *UserService) GetInfo(id uint) (basic.User, error) {
 	var user basic.User
 	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error

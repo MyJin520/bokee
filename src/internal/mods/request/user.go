@@ -30,6 +30,15 @@ type ForgetPasswordReq struct {
 	SpecifyUserID uint   `json:"specify_user_id"`
 }
 
+// UserListReq 用户列表查询请求
+type UserListReq struct {
+	PageReq
+	Name   string `form:"name"`   // 用户名模糊搜索
+	Phone  string `form:"phone"`  // 手机号模糊搜索
+	Email  string `form:"email"`  // 邮箱模糊搜索
+	Status string `form:"status"` // 账号状态精确匹配
+}
+
 // UserRoleBindReq 用户角色绑定请求（支持批量绑定多个角色）
 type UserRoleBindReq struct {
 	UserID  uint   `json:"userId" binding:"required"`  // 用户ID
