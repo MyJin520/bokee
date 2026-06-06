@@ -241,7 +241,7 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 }
 
 // BindRoles 为用户绑定角色（追加式：在已有角色基础上追加指定角色，不影响已绑定的角色）
-func (s *UserService) BindRoles(c *gin.Context, req request.UserRoleBindReq) error {
+func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 	return global.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. 查询用户是否存在
 		var user basic.User

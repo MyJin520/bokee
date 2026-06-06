@@ -7,7 +7,6 @@ import (
 	"gin-admin/internal/mods/request"
 	"gin-admin/internal/mods/response"
 	"gin-admin/pkg/casbinx"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strconv"
@@ -17,7 +16,7 @@ import (
 type RoleService struct{}
 
 // Create 创建角色
-func (s *RoleService) Create(c *gin.Context, req request.RoleCreateReq) (*response.RoleResp, error) {
+func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, error) {
 	// 校验角色名称是否已存在
 	var nameCount int64
 	global.DB.Model(&basic.Role{}).Where("role_name = ?", req.RoleName).Count(&nameCount)
@@ -64,7 +63,7 @@ func (s *RoleService) Create(c *gin.Context, req request.RoleCreateReq) (*respon
 }
 
 // Update 更新角色
-func (s *RoleService) Update(c *gin.Context, req request.RoleUpdateReq) error {
+func (s *RoleService) Update(req request.RoleUpdateReq) error {
 	// 查询原角色
 	var role basic.Role
 	err := global.DB.Where("id = ?", req.ID).First(&role).Error
@@ -120,7 +119,7 @@ func (s *RoleService) Update(c *gin.Context, req request.RoleUpdateReq) error {
 }
 
 // Delete 删除角色（软删除）
-func (s *RoleService) Delete(c *gin.Context, id uint) error {
+func (s *RoleService) Delete(id uint) error {
 	// 查询角色
 	var role basic.Role
 	err := global.DB.Where("id = ?", id).First(&role).Error
@@ -154,7 +153,7 @@ func (s *RoleService) Delete(c *gin.Context, id uint) error {
 }
 
 // Get 获取单个角色详情
-func (s *RoleService) Get(c *gin.Context, id uint) (*response.RoleResp, error) {
+func (s *RoleService) Get(id uint) (*response.RoleResp, error) {
 	var role basic.Role
 	err := global.DB.Where("id = ?", id).First(&role).Error
 	if err != nil {
@@ -178,7 +177,7 @@ func (s *RoleService) Get(c *gin.Context, id uint) (*response.RoleResp, error) {
 }
 
 // List 分页获取角色列表
-func (s *RoleService) List(c *gin.Context, req request.RoleQueryReq) ([]response.RoleResp, int64, error) {
+func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64, error) {
 	// 构建查询
 	query := global.DB.Model(&basic.Role{})
 
@@ -226,7 +225,7 @@ func (s *RoleService) List(c *gin.Context, req request.RoleQueryReq) ([]response
 }
 
 // Auth 为角色批量授权（添加 Casbin 策略）
-func (s *RoleService) Auth(c *gin.Context, req request.RoleAuthReq) error {
+func (s *RoleService) Auth(req request.RoleAuthReq) error {
 	// 查询角色
 	var role basic.Role
 	err := global.DB.Where("id = ?", req.RoleID).First(&role).Error

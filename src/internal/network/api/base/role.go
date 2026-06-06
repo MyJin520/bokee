@@ -21,7 +21,7 @@ func (a *RoleApi) Create(c *gin.Context) {
 		return
 	}
 
-	resp, err := roleService.Create(c, req)
+	resp, err := roleService.Create(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -37,7 +37,7 @@ func (a *RoleApi) Update(c *gin.Context) {
 		return
 	}
 
-	if err := roleService.Update(c, req); err != nil {
+	if err := roleService.Update(req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -53,7 +53,7 @@ func (a *RoleApi) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := roleService.Delete(c, uint(id)); err != nil {
+	if err := roleService.Delete(uint(id)); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -69,7 +69,7 @@ func (a *RoleApi) Get(c *gin.Context) {
 		return
 	}
 
-	resp, err := roleService.Get(c, uint(id))
+	resp, err := roleService.Get(uint(id))
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -86,7 +86,7 @@ func (a *RoleApi) List(c *gin.Context) {
 	}
 	req.Normalize()
 
-	list, total, err := roleService.List(c, req)
+	list, total, err := roleService.List(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -102,7 +102,7 @@ func (a *RoleApi) Auth(c *gin.Context) {
 		return
 	}
 
-	if err := roleService.Auth(c, req); err != nil {
+	if err := roleService.Auth(req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

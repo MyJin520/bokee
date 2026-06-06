@@ -110,7 +110,7 @@ func (u *UserApi) BindRoles(c *gin.Context) {
 		return
 	}
 
-	if err := userService.BindRoles(c, req); err != nil {
+	if err := userService.BindRoles(req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
