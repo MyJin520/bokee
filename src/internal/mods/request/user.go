@@ -29,3 +29,9 @@ type ForgetPasswordReq struct {
 	NewPassword   string `json:"new_password"`
 	SpecifyUserID uint   `json:"specify_user_id"`
 }
+
+// UserRoleBindReq 用户角色绑定请求（支持批量绑定多个角色）
+type UserRoleBindReq struct {
+	UserID  uint   `json:"userId" binding:"required"`  // 用户ID
+	RoleIDs []uint `json:"roleIds" binding:"required"` // 角色ID列表（传单个角色ID也使用数组格式）
+}

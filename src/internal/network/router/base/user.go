@@ -20,5 +20,6 @@ func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup)
 		userPrivate.GET("/logout", userApi.Logout)                   // 用户登出
 		userPrivate.GET("/get_info", userApi.GetInfo)                // 获取用户信息
 		userPrivate.POST("/forget_password", userApi.ForgetPassword) // 忘记密码
+		userPrivate.POST("/bind_roles", userApi.BindRoles)           // 用户角色绑定
 	}
 }

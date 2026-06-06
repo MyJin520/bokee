@@ -240,6 +240,74 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 	})
 }
 
+// BindRoles 为用户绑定角色（追加式：在已有角色基础上追加指定角色，不影响已绑定的角色）
+func (s *UserService) BindRoles(c *gin.Context, req request.UserRoleBindReq) error {
+	return global.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 查询用户是否存在
+		var user basic.User
+		err := tx.Where("id = ?", req.UserID).First(&user).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("用户不存在")
+			}
+			global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", req.UserID))
+			return errors.New("查询用户失败，请稍后重试")
+		}
+
+		// 2. 校验所有角色是否存在
+		if len(req.RoleIDs) == 0 {
+			return errors.New("角色ID列表不能为空")
+		}
+
+		var roles []basic.Role
+		if err := tx.Where("id IN ?", req.RoleIDs).Find(&roles).Error; err != nil {
+			global.Log.Error("查询角色失败", zap.Error(err))
+			return errors.New("查询角色失败，请稍后重试")
+		}
+
+		if len(roles) != len(req.RoleIDs) {
+			return errors.New("部分角色不存在，请检查角色ID")
+		}
+
+		// 3. 获取用户已绑定的角色，过滤出尚未绑定的角色进行追加
+		var currentRoles []basic.Role
+		if err := tx.Model(&user).Association("Roles").Find(&currentRoles); err != nil {
+			global.Log.Error("查询用户当前角色失败", zap.Error(err))
+			return errors.New("查询用户当前角色失败，请稍后重试")
+		}
+
+		currentRoleIDs := make(map[uint]bool)
+		for _, r := range currentRoles {
+			currentRoleIDs[r.ID] = true
+		}
+
+		var newRoles []basic.Role
+		for _, r := range roles {
+			if !currentRoleIDs[r.ID] {
+				newRoles = append(newRoles, r)
+			}
+		}
+
+		if len(newRoles) == 0 {
+			return errors.New("指定角色已绑定，无需重复绑定")
+		}
+
+		// 4. 追加新角色（GORM many2many 自动写入 sys_user_roles 表）
+		if err := tx.Model(&user).Association("Roles").Append(&newRoles); err != nil {
+			global.Log.Error("绑定用户角色失败", zap.Error(err),
+				zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
+			return errors.New("角色绑定失败，请稍后重试")
+		}
+
+		global.Log.Info("用户角色绑定成功",
+			zap.Uint("userID", req.UserID),
+			zap.Any("roleIDs", req.RoleIDs),
+			zap.Int("newRoleCount", len(newRoles)),
+		)
+		return nil
+	})
+}
+
 func (s *UserService) GetInfo(id uint) (basic.User, error) {
 	var user basic.User
 	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
