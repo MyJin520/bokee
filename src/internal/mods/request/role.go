@@ -24,3 +24,15 @@ type RoleQueryReq struct {
 	Status   string `form:"status"`
 	PageReq         // 嵌入分页参数
 }
+
+// RoleAuthItem 单条授权规则
+type RoleAuthItem struct {
+	Path   string `json:"path"`   // 请求路径
+	Method string `json:"method"` // 请求方法（GET/POST/PUT/DELETE）
+}
+
+// RoleAuthReq 角色授权请求（支持批量）
+type RoleAuthReq struct {
+	RoleID uint           `json:"roleID" binding:"required"` // 角色ID
+	Rules  []RoleAuthItem `json:"rules" binding:"required"`  // 授权规则列表
+}

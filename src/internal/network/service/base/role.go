@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"strconv"
+	"strings"
 )
 
 type RoleService struct{}
@@ -221,6 +223,68 @@ func (s *RoleService) List(c *gin.Context, req request.RoleQueryReq) ([]response
 	}
 
 	return list, total, nil
+}
+
+// Auth 为角色批量授权（添加 Casbin 策略）
+func (s *RoleService) Auth(c *gin.Context, req request.RoleAuthReq) error {
+	// 查询角色
+	var role basic.Role
+	err := global.DB.Where("id = ?", req.RoleID).First(&role).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("角色不存在")
+		}
+		global.Log.Error("查询角色失败", zap.Error(err))
+		return errors.New("查询角色失败，请稍后重试")
+	}
+
+	// 禁止为超级管理员手动授权（超级管理员自动拥有全部权限）
+	if role.RoleCode == uint(global.SuperRoleCode) {
+		return errors.New("超级管理员无需手动授权")
+	}
+
+	if len(req.Rules) == 0 {
+		return errors.New("授权规则不能为空")
+	}
+
+	// 构建 Casbin 策略：p = sub(roleCode), obj(path), act(method)
+	roleCodeStr := strconv.Itoa(int(role.RoleCode))
+	policies := make([][]string, 0, len(req.Rules))
+	for _, rule := range req.Rules {
+		if rule.Path == "" || rule.Method == "" {
+			return errors.New("路由路径和请求方法不能为空")
+		}
+		policies = append(policies, []string{roleCodeStr, rule.Path, strings.ToUpper(rule.Method)})
+	}
+
+	enforcer, err := casbinx.GetEnforcer()
+	if err != nil {
+		global.Log.Error("获取 Casbin 执行器失败", zap.Error(err))
+		return errors.New("授权失败，请稍后重试")
+	}
+
+	// 批量添加策略
+	success, err := enforcer.AddPolicies(policies)
+	if err != nil {
+		global.Log.Error("批量添加 Casbin 策略失败", zap.Error(err))
+		return errors.New("授权失败，请稍后重试")
+	}
+	if !success {
+		return errors.New("授权规则与已有规则重复，无需重复添加")
+	}
+
+	// 重载策略使更改立即生效
+	if err := casbinx.ReloadPolicy(); err != nil {
+		global.Log.Error("重载 Casbin 策略失败", zap.Error(err))
+		return errors.New("授权成功但策略重载失败，请稍后重试")
+	}
+
+	global.Log.Info("角色授权成功",
+		zap.Uint("roleID", req.RoleID),
+		zap.String("roleName", role.RoleName),
+		zap.Int("ruleCount", len(req.Rules)),
+	)
+	return nil
 }
 
 // GetAllPriRoles 获取所有私有路由（原有功能，保留兼容）

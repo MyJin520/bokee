@@ -94,6 +94,21 @@ func (a *RoleApi) List(c *gin.Context) {
 	response.OkWithPage(list, total, req.Page, req.PageSize, "获取角色列表成功", c)
 }
 
+// Auth 角色授权
+func (a *RoleApi) Auth(c *gin.Context) {
+	var req request.RoleAuthReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+
+	if err := roleService.Auth(c, req); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithMessage("角色授权成功", c)
+}
+
 // GetAllPriRoles 获取所有私有路由（保留原有功能）
 func (a *RoleApi) GetAllPriRoles(c *gin.Context) {
 	var page request.PageReq
