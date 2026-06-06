@@ -194,3 +194,79 @@ func (s *UserService) GetAllPriRoles(page request.PageReq) ([]response.PriRouteR
 
 	return routes[start:end], total, nil
 }
+
+func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) error {
+	return global.DB.Transaction(func(tx *gorm.DB) error {
+		// 查询当前操作用户并判断是否为管理员
+		var currentUser basic.User
+		err := tx.Where("id = ?", cruId).Preload("Roles").First(&currentUser).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("用户不存在")
+			}
+			global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", cruId))
+			return errors.New("查询用户失败，请稍后重试")
+		}
+
+		isAdmin := false
+		for _, role := range currentUser.Roles {
+			if role.RoleCode == global.SuperRoleCode {
+				isAdmin = true
+				break
+			}
+		}
+
+		// 确定目标用户 ID
+		var targetUserID uint
+		if isAdmin {
+			if req.SpecifyUserID != 0 {
+				targetUserID = req.SpecifyUserID
+			} else {
+				targetUserID = cruId
+			}
+		} else {
+			if req.SpecifyUserID != 0 && req.SpecifyUserID != cruId {
+				return errors.New("非管理员不能修改其他用户的密码")
+			}
+			targetUserID = cruId
+		}
+
+		// 非管理员校验旧密码（currentUser 已包含 password，无需二次查询）
+		if !isAdmin {
+			if err := hash.CompareHashAndPassword(currentUser.Password, req.OldPassword); err != nil {
+				return errors.New("旧密码错误，请输入正确的旧密码")
+			}
+		}
+
+		// 管理员跨用户操作时，确认目标用户存在（轻量 Count 代替全量查询）
+		if isAdmin && targetUserID != cruId {
+			var exists int64
+			if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Count(&exists).Error; err != nil {
+				global.Log.Error("查询目标用户失败", zap.Error(err), zap.Uint("targetUserID", targetUserID))
+				return errors.New("查询目标用户失败，请稍后重试")
+			}
+			if exists == 0 {
+				return errors.New("目标用户不存在")
+			}
+		}
+
+		// 加密新密码
+		newPassword, err := hash.GeneratePassword(req.NewPassword)
+		if err != nil {
+			global.Log.Error("密码加密失败", zap.Error(err))
+			return errors.New("密码加密失败，请稍后重试")
+		}
+
+		// 更新密码
+		if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Update("password", newPassword).Error; err != nil {
+			global.Log.Error("更新密码失败", zap.Error(err), zap.Uint("targetUserID", targetUserID))
+			return errors.New("修改密码失败，请稍后重试")
+		}
+
+		global.Log.Info("密码修改成功",
+			zap.Uint("operatorID", cruId),
+			zap.Uint("targetUserID", targetUserID),
+			zap.Bool("isAdmin", isAdmin))
+		return nil
+	})
+}

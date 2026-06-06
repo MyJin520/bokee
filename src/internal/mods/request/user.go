@@ -23,3 +23,9 @@ type UserEditReq struct {
 	Email    string `json:"email"`
 	Avatar   string `json:"avatar"`
 }
+
+type ForgetPasswordReq struct {
+	OldPassword   string `json:"old_password"`
+	NewPassword   string `json:"new_password"`
+	SpecifyUserID uint   `json:"specify_user_id"`
+}

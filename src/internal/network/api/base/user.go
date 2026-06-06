@@ -101,3 +101,19 @@ func (u *UserApi) GetAllPriRoles(c *gin.Context) {
 	}
 	response.OkWithPage(routes, total, page.Page, page.PageSize, "获取私有路由列表成功", c)
 }
+
+func (u *UserApi) ForgetPassword(c *gin.Context) {
+	var req request.ForgetPasswordReq
+	err := c.BindJSON(&req)
+	if err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	cruId, _ := middleware.GetUserIDFromContext(c)
+	err = userService.ForgetPassword(req, cruId)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithMessage("密码重置成功", c)
+}
