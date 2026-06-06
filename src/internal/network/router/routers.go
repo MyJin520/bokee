@@ -18,6 +18,7 @@ func Routers() *gin.Engine {
 	privateGroup.Use(middleware.CasbinMiddleware())
 
 	base.InitUserRouter(publicGroup, privateGroup)
+	base.InitRoleRouter(privateGroup)
 
 	return engine
 }

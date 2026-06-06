@@ -21,7 +21,4 @@ func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup)
 		userPrivate.GET("/get_info", userApi.GetInfo)                // 获取用户信息
 		userPrivate.POST("/forget_password", userApi.ForgetPassword) // 忘记密码
 	}
-	{
-		userPrivate.GET("/get_all_pri_rule", userApi.GetAllPriRoles) // 获取所有私密路由
-	}
 }
