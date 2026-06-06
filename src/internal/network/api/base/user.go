@@ -8,6 +8,7 @@ import (
 	"gin-admin/pkg/jwtx"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 )
 
 type UserApi struct{}
@@ -116,4 +117,35 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 		return
 	}
 	response.OkWithMessage("密码重置成功", c)
+}
+
+func (u *UserApi) GetInfo(c *gin.Context) {
+	var (
+		userID uint
+		err    error
+		ok     bool
+	)
+
+	userIDStr := c.Query("user_id")
+	if userIDStr != "" {
+		parsed, parseErr := strconv.ParseUint(userIDStr, 10, 32)
+		if parseErr != nil {
+			response.FailWithMessage("无效的用户ID", c)
+			return
+		}
+		userID = uint(parsed)
+	} else {
+		userID, ok = middleware.GetUserIDFromContext(c)
+		if !ok {
+			response.FailWithMessage("无法获取当前用户信息", c)
+			return
+		}
+	}
+
+	user, err := userService.GetInfo(userID)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithData(user, "获取用户信息成功", c)
 }

@@ -270,3 +270,12 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 		return nil
 	})
 }
+
+func (s *UserService) GetInfo(id uint) (basic.User, error) {
+	var user basic.User
+	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
+	if err != nil {
+		return basic.User{}, err
+	}
+	return user, nil
+}
