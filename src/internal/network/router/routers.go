@@ -9,6 +9,9 @@ import (
 func Routers() *gin.Engine {
 	engine := gin.Default()
 
+	// CORS 跨域中间件（全局）
+	engine.Use(middleware.CORSMiddleware())
+
 	// 公开路由组
 	publicGroup := engine.Group("/pub")
 
