@@ -23,7 +23,7 @@ func CasbinMiddleware() gin.HandlerFunc {
 		}
 
 		// 构造 Casbin 所需的资源路径与动作
-		obj := c.Request.URL.Path // 例如 /pri/user/edit
+		obj := c.Request.URL.Path // 例如 /pri/user/update
 		act := c.Request.Method   // 例如 POST
 
 		// 逐个角色标识码执行权限校验，任一角色拥有权限即放行

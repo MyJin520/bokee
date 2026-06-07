@@ -80,7 +80,7 @@ func (a *RoleApi) Get(c *gin.Context) {
 // List 分页获取角色列表
 func (a *RoleApi) List(c *gin.Context) {
 	var req request.RoleQueryReq
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
@@ -112,7 +112,7 @@ func (a *RoleApi) Auth(c *gin.Context) {
 // GetAllPriRoles 获取所有私有路由（保留原有功能）
 func (a *RoleApi) GetAllPriRoles(c *gin.Context) {
 	var page request.PageReq
-	if err := c.ShouldBindQuery(&page); err != nil {
+	if err := c.ShouldBindJSON(&page); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}

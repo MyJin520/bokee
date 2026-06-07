@@ -18,7 +18,7 @@ import (
 
 type UserService struct{}
 
-func (s *UserService) Register(req request.UserRegisterReq) error {
+func (s *UserService) Create(req request.UserCreateReq) error {
 	var count int64
 	global.DB.Model(&basic.User{}).Where("phone = ? OR email = ?", req.Phone, req.Email).Count(&count)
 	if count > 0 {
@@ -92,7 +92,7 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error)
 	return jwtResponse, nil
 }
 
-func (s *UserService) Edit(req request.UserEditReq, uid uint) error {
+func (s *UserService) Update(req request.UserUpdateReq, uid uint) error {
 	// 构建需要更新的字段映射，只更新非空字段
 	updates := make(map[string]interface{})
 

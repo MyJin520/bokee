@@ -1,8 +1,8 @@
 package request
 
 type PageReq struct {
-	Page     int `form:"page"`
-	PageSize int `form:"pageSize"`
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }
 
 func (p *PageReq) Normalize() {

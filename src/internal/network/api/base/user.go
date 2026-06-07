@@ -15,25 +15,22 @@ type UserApi struct{}
 
 var userService = &base.UserService{}
 
-func (u *UserApi) Register(c *gin.Context) {
-	var req request.UserRegisterReq
-	err := c.BindJSON(&req)
-	if err != nil {
+func (u *UserApi) Create(c *gin.Context) {
+	var req request.UserCreateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
-	err = userService.Register(req)
-	if err != nil {
+	if err := userService.Create(req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithMessage("用户注册成功", c)
+	response.OkWithMessage("用户创建成功", c)
 }
 
 func (u *UserApi) Login(c *gin.Context) {
 	var req request.UserLoginReq
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
@@ -48,8 +45,7 @@ func (u *UserApi) Login(c *gin.Context) {
 // ParseToken TODO 测试解析Token
 func (u *UserApi) ParseToken(c *gin.Context) {
 	var req request.TokenParsingReq
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
@@ -61,20 +57,18 @@ func (u *UserApi) ParseToken(c *gin.Context) {
 	response.OkWithData(claims, "解析成功", c)
 }
 
-func (u *UserApi) Edit(c *gin.Context) {
-	var req request.UserEditReq
-	err := c.BindJSON(&req)
-	if err != nil {
+func (u *UserApi) Update(c *gin.Context) {
+	var req request.UserUpdateReq
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
 	userID, _ := middleware.GetUserIDFromContext(c)
-	err = userService.Edit(req, userID)
-	if err != nil {
+	if err := userService.Update(req, userID); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithMessage("用户编辑成功", c)
+	response.OkWithMessage("用户更新成功", c)
 }
 
 func (u *UserApi) Logout(c *gin.Context) {
@@ -88,14 +82,12 @@ func (u *UserApi) Logout(c *gin.Context) {
 
 func (u *UserApi) ForgetPassword(c *gin.Context) {
 	var req request.ForgetPasswordReq
-	err := c.BindJSON(&req)
-	if err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
 	cruId, _ := middleware.GetUserIDFromContext(c)
-	err = userService.ForgetPassword(req, cruId)
-	if err != nil {
+	if err := userService.ForgetPassword(req, cruId); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -150,7 +142,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 
 func (u *UserApi) List(c *gin.Context) {
 	var req request.UserListReq
-	if err := c.ShouldBindQuery(&req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}

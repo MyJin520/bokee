@@ -1,6 +1,6 @@
 package request
 
-type UserRegisterReq struct {
+type UserCreateReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Phone    string `json:"phone"`
@@ -17,7 +17,7 @@ type TokenParsingReq struct {
 	Token string `json:"token"`
 }
 
-type UserEditReq struct {
+type UserUpdateReq struct {
 	Username string `json:"username"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
@@ -33,10 +33,10 @@ type ForgetPasswordReq struct {
 // UserListReq 用户列表查询请求
 type UserListReq struct {
 	PageReq
-	Name   string `form:"name"`   // 用户名模糊搜索
-	Phone  string `form:"phone"`  // 手机号模糊搜索
-	Email  string `form:"email"`  // 邮箱模糊搜索
-	Status string `form:"status"` // 账号状态精确匹配
+	Name   string `json:"name"`   // 用户名模糊搜索
+	Phone  string `json:"phone"`  // 手机号模糊搜索
+	Email  string `json:"email"`  // 邮箱模糊搜索
+	Status string `json:"status"` // 账号状态精确匹配
 }
 
 // UserRoleBindReq 用户角色绑定请求（支持批量绑定多个角色）

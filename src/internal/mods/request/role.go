@@ -20,8 +20,8 @@ type RoleUpdateReq struct {
 
 // RoleQueryReq 角色分页查询请求
 type RoleQueryReq struct {
-	RoleName string `form:"roleName"`
-	Status   string `form:"status"`
+	RoleName string `json:"roleName"`
+	Status   string `json:"status"`
 	PageReq         // 嵌入分页参数
 }
 
