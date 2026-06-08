@@ -25,6 +25,7 @@ func migrateTable() {
 	err := global.DB.AutoMigrate(
 		&basic.User{},
 		&basic.Role{},
+		&basic.Article{},
 	)
 	if err != nil {
 		panic("数据库迁移失败: " + err.Error())

@@ -2,6 +2,7 @@ package router
 
 import (
 	"gin-admin/internal/network/middleware"
+	"gin-admin/internal/network/router/articles"
 	"gin-admin/internal/network/router/base"
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +23,7 @@ func Routers() *gin.Engine {
 
 	base.InitUserRouter(publicGroup, privateGroup)
 	base.InitRoleRouter(privateGroup)
+	articles.InitArticleRouter(privateGroup)
 
 	return engine
 }
