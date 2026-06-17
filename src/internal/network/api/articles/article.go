@@ -93,10 +93,10 @@ func (a ArticleApi) List(c *gin.Context) {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
-	articleList, err := articleService.GetArticleList(req)
+	articleList, total, err := articleService.GetArticleList(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithData(articleList, "文章列表获取成功", c)
+	response.OkWithPage(articleList, total, req.Page, req.PageSize, "文章列表获取成功", c)
 }

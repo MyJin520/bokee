@@ -77,5 +77,31 @@ func (s ArticleService) GetArticleInfo(id uint) (basic.Article, error) {
 }
 
 func (s ArticleService) GetArticleList(req request.ArticleQueryListReq) ([]basic.Article, int64, error) {
-	return nil, 0, nil
+	query := global.DB.Model(&basic.Article{})
+
+	if req.Title != "" {
+		query = query.Where("title LIKE ?", "%"+req.Title+"%")
+	}
+	if req.Summary != "" {
+		query = query.Where("summary LIKE ?", "%"+req.Summary+"%")
+	}
+	if req.UserName != "" {
+		query = query.Joins("JOIN users ON users.id = articles.user_id").
+			Where("users.name LIKE ?", "%"+req.UserName+"%")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, errors.New("统计文章总数失败: " + err.Error())
+	}
+
+	var articles []basic.Article
+	if err := query.Order("is_top DESC, id DESC").
+		Offset(req.Offset()).
+		Limit(req.PageSize).
+		Find(&articles).Error; err != nil {
+		return nil, 0, errors.New("查询文章列表失败: " + err.Error())
+	}
+
+	return articles, total, nil
 }
