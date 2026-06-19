@@ -22,3 +22,8 @@ type ArticleQueryListReq struct {
 	Summary  string `json:"summary"`
 	PageReq
 }
+
+type UserArticleListReq struct {
+	UserID uint `json:"userId"` // 用户 ID
+	PageReq
+}

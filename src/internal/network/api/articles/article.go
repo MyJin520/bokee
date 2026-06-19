@@ -87,6 +87,22 @@ func (a ArticleApi) GetInfo(c *gin.Context) {
 	response.OkWithData(article, "文章详情获取成功", c)
 }
 
+func (a ArticleApi) ListByUser(c *gin.Context) {
+	var req request.UserArticleListReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	req.Normalize()
+
+	articleList, total, err := articleService.GetArticlesByUserID(req.UserID, req.PageReq)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithPage(articleList, total, req.Page, req.PageSize, "用户文章列表获取成功", c)
+}
+
 func (a ArticleApi) List(c *gin.Context) {
 	var req request.ArticleQueryListReq
 	if err := c.ShouldBindJSON(&req); err != nil {
