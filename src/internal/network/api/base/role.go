@@ -60,8 +60,8 @@ func (a *RoleApi) Delete(c *gin.Context) {
 	response.OkWithMessage("删除角色成功", c)
 }
 
-// Get 获取角色详情
-func (a *RoleApi) Get(c *gin.Context) {
+// GetInfo 获取角色详情
+func (a *RoleApi) GetInfo(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -69,7 +69,7 @@ func (a *RoleApi) Get(c *gin.Context) {
 		return
 	}
 
-	resp, err := roleService.Get(uint(id))
+	resp, err := roleService.GetInfo(uint(id))
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -109,8 +109,8 @@ func (a *RoleApi) Auth(c *gin.Context) {
 	response.OkWithMessage("角色授权成功", c)
 }
 
-// GetAllPriRoles 获取所有私有路由（保留原有功能）
-func (a *RoleApi) GetAllPriRoles(c *gin.Context) {
+// GetAllPriRule 获取所有私有路由（保留原有功能）
+func (a *RoleApi) GetAllPriRule(c *gin.Context) {
 	var page request.PageReq
 	if err := c.ShouldBindJSON(&page); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
@@ -118,7 +118,7 @@ func (a *RoleApi) GetAllPriRoles(c *gin.Context) {
 	}
 	page.Normalize()
 
-	routes, total, err := roleService.GetAllPriRoles(page)
+	routes, total, err := roleService.GetAllPriRule(page)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return

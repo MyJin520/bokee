@@ -152,8 +152,8 @@ func (s *RoleService) Delete(id uint) error {
 	return nil
 }
 
-// Get 获取单个角色详情
-func (s *RoleService) Get(id uint) (*response.RoleResp, error) {
+// GetInfo 获取单个角色详情
+func (s *RoleService) GetInfo(id uint) (*response.RoleResp, error) {
 	var role basic.Role
 	err := global.DB.Where("id = ?", id).First(&role).Error
 	if err != nil {
@@ -286,8 +286,8 @@ func (s *RoleService) Auth(req request.RoleAuthReq) error {
 	return nil
 }
 
-// GetAllPriRoles 获取所有私有路由（原有功能，保留兼容）
-func (s *RoleService) GetAllPriRoles(page request.PageReq) ([]response.PriRouteResp, int64, error) {
+// GetAllPriRule 获取所有私有路由（原有功能，保留兼容）
+func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriRouteResp, int64, error) {
 	policies, err := casbinx.GetPrivateRoutes()
 	if err != nil {
 		return nil, 0, err
