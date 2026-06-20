@@ -11,3 +11,5 @@ type Article struct {
 	LikeCount int    `gorm:"default:0" comment:"点赞数"`
 	IsTop     bool   `gorm:"default:false;index" comment:"是否置顶"`
 }
+
+func (a Article) GetUserID() uint { return a.UserID }

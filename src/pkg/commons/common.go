@@ -1,6 +1,8 @@
 package commons
 
 import (
+	"errors"
+	"gin-admin/internal/mods/interfaces"
 	"reflect"
 	"strings"
 )
@@ -22,4 +24,12 @@ func StructToUpdateMap(data interface{}) map[string]interface{} {
 		}
 	}
 	return updates
+}
+
+// CheckOwnership 校验当前用户是否拥有该资源，否则返回"无权操作"错误
+func CheckOwnership(record interfaces.Ownable, userId uint) error {
+	if record.GetUserID() != userId {
+		return errors.New("无权操作他人资源")
+	}
+	return nil
 }

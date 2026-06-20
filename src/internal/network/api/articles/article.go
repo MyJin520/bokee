@@ -35,7 +35,8 @@ func (a *ArticleApi) Update(c *gin.Context) {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
-	err := articleService.Update(req)
+	userId, _ := middleware.GetUserIDFromContext(c)
+	err := articleService.Update(req, userId)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -57,7 +58,8 @@ func (a *ArticleApi) Delete(c *gin.Context) {
 	}
 
 	articleID := uint(id)
-	if err := articleService.Delete(articleID); err != nil {
+	userId, _ := middleware.GetUserIDFromContext(c)
+	if err := articleService.Delete(articleID, userId); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

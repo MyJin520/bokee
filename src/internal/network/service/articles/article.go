@@ -27,7 +27,7 @@ func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) e
 	return nil
 }
 
-func (a *ArticleService) Update(req request.UpdateArticleRequest) error {
+func (a *ArticleService) Update(req request.UpdateArticleRequest, userId uint) error {
 	var article basic.Article
 	err := global.DB.Where("id = ?", req.ID).First(&article).Error
 	if err != nil {
@@ -37,6 +37,11 @@ func (a *ArticleService) Update(req request.UpdateArticleRequest) error {
 		}
 		global.Log.Error("查询文章失败", zap.Error(err), zap.Uint("articleID", req.ID))
 		return errors.New("查询文章失败，请稍后重试")
+	}
+
+	if err := commons.CheckOwnership(article, userId); err != nil {
+		global.Log.Warn("更新文章失败：非文章作者", zap.Uint("articleID", req.ID), zap.Uint("userID", userId))
+		return err
 	}
 
 	updates := commons.StructToUpdateMap(req)
@@ -57,8 +62,24 @@ func (a *ArticleService) Update(req request.UpdateArticleRequest) error {
 	return nil
 }
 
-func (a *ArticleService) Delete(id uint) error {
-	result := global.DB.Where("id = ?", id).Delete(&basic.Article{})
+func (a *ArticleService) Delete(id uint, userId uint) error {
+	var article basic.Article
+	err := global.DB.Where("id = ?", id).First(&article).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			global.Log.Warn("删除文章失败：文章不存在", zap.Uint("articleID", id))
+			return errors.New("文章不存在")
+		}
+		global.Log.Error("查询文章失败", zap.Error(err), zap.Uint("articleID", id))
+		return errors.New("查询文章失败，请稍后重试")
+	}
+
+	if err := commons.CheckOwnership(article, userId); err != nil {
+		global.Log.Warn("删除文章失败：非文章作者", zap.Uint("articleID", id), zap.Uint("userID", userId))
+		return err
+	}
+
+	result := global.DB.Delete(&article)
 	if result.Error != nil {
 		global.Log.Error("删除文章失败", zap.Error(result.Error), zap.Uint("articleID", id))
 		return errors.New("文章删除失败，请稍后重试")
