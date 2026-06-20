@@ -88,7 +88,7 @@ func (s *RoleService) Update(req request.RoleUpdateReq) error {
 			return errors.New("角色名称已存在")
 		}
 	}
-
+	// todo 后续使用公共更新方法
 	// 构建更新字段
 	updates := make(map[string]interface{})
 	if req.RoleName != "" {
@@ -163,7 +163,7 @@ func (s *RoleService) GetInfo(id uint) (*response.RoleResp, error) {
 		global.Log.Error("查询角色失败", zap.Error(err))
 		return nil, errors.New("查询角色失败，请稍后重试")
 	}
-
+	// todo 后续直接使用表结构体本身
 	return &response.RoleResp{
 		ID:        role.ID,
 		RoleName:  role.RoleName,
@@ -205,7 +205,7 @@ func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64
 		global.Log.Error("查询角色列表失败", zap.Error(err))
 		return nil, 0, errors.New("查询角色列表失败，请稍后重试")
 	}
-
+	// todo 后续优化
 	// 转换为响应结构体
 	list := make([]response.RoleResp, 0, len(roles))
 	for _, role := range roles {

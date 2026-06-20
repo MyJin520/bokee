@@ -12,7 +12,7 @@ import (
 
 type ArticleService struct{}
 
-func (s ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
+func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
 	newArticle := basic.Article{
 		UserID:  userId,
 		Title:   req.Title,
@@ -27,7 +27,7 @@ func (s ArticleService) Create(req request.CreateArticleRequest, userId uint) er
 	return nil
 }
 
-func (s ArticleService) Update(req request.UpdateArticleRequest) error {
+func (a *ArticleService) Update(req request.UpdateArticleRequest) error {
 	var article basic.Article
 	err := global.DB.Where("id = ?", req.ID).First(&article).Error
 	if err != nil {
@@ -57,7 +57,7 @@ func (s ArticleService) Update(req request.UpdateArticleRequest) error {
 	return nil
 }
 
-func (s ArticleService) Delete(id uint) error {
+func (a *ArticleService) Delete(id uint) error {
 	result := global.DB.Where("id = ?", id).Delete(&basic.Article{})
 	if result.Error != nil {
 		global.Log.Error("删除文章失败", zap.Error(result.Error), zap.Uint("articleID", id))
@@ -71,7 +71,7 @@ func (s ArticleService) Delete(id uint) error {
 	return nil
 }
 
-func (s ArticleService) GetInfo(id uint) (basic.Article, error) {
+func (a *ArticleService) GetInfo(id uint) (basic.Article, error) {
 	var article basic.Article
 	err := global.DB.Where("id = ?", id).First(&article).Error
 	if err != nil {
@@ -84,7 +84,7 @@ func (s ArticleService) GetInfo(id uint) (basic.Article, error) {
 	return article, nil
 }
 
-func (s ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]basic.Article, int64, error) {
+func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]basic.Article, int64, error) {
 	query := global.DB.Model(&basic.Article{}).Where("user_id = ?", userId)
 
 	var total int64
@@ -105,7 +105,7 @@ func (s ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]basi
 	return articles, total, nil
 }
 
-func (s ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article, int64, error) {
+func (a *ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article, int64, error) {
 	query := global.DB.Model(&basic.Article{})
 
 	if req.Title != "" {
