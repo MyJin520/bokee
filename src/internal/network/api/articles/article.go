@@ -21,7 +21,7 @@ func (a ArticleApi) Create(c *gin.Context) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
-	err := articleService.CreateArticle(req, userId)
+	err := articleService.Create(req, userId)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -35,7 +35,7 @@ func (a ArticleApi) Update(c *gin.Context) {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
-	err := articleService.UpdateArticle(req)
+	err := articleService.Update(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -57,7 +57,7 @@ func (a ArticleApi) Delete(c *gin.Context) {
 	}
 
 	articleID := uint(id)
-	if err := articleService.DeleteArticle(articleID); err != nil {
+	if err := articleService.Delete(articleID); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -78,7 +78,7 @@ func (a ArticleApi) GetInfo(c *gin.Context) {
 		return
 	}
 	articleID := uint(id)
-	article, err := articleService.GetArticleInfo(articleID)
+	article, err := articleService.GetInfo(articleID)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -95,7 +95,7 @@ func (a ArticleApi) ListByUser(c *gin.Context) {
 	}
 	req.Normalize()
 
-	articleList, total, err := articleService.GetArticlesByUserID(req.UserID, req.PageReq)
+	articleList, total, err := articleService.ListByUser(req.UserID, req.PageReq)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -109,7 +109,7 @@ func (a ArticleApi) List(c *gin.Context) {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
 		return
 	}
-	articleList, total, err := articleService.GetArticleList(req)
+	articleList, total, err := articleService.List(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
