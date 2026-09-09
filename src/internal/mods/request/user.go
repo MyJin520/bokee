@@ -1,5 +1,6 @@
 package request
 
+// UserCreateReq 创建用户
 type UserCreateReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -8,15 +9,18 @@ type UserCreateReq struct {
 	Avatar   string `json:"avatar"`
 }
 
+// UserLoginReq 用户登陆
 type UserLoginReq struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// TokenParsingReq todo 测试接口后续删除
 type TokenParsingReq struct {
 	Token string `json:"token"`
 }
 
+// UserUpdateReq 更新用户
 type UserUpdateReq struct {
 	Username string `json:"username"`
 	Phone    string `json:"phone"`
@@ -24,9 +28,10 @@ type UserUpdateReq struct {
 	Avatar   string `json:"avatar"`
 }
 
+// ForgetPasswordReq 忘记密码
 type ForgetPasswordReq struct {
 	OldPassword   string `json:"old_password"`
-	NewPassword   string `json:"new_password"`
+	NewPassword   string `json:"new_password" label:"新密码" validate:"min=6"`
 	SpecifyUserID uint   `json:"specify_user_id"`
 }
 

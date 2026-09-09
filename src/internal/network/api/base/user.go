@@ -6,6 +6,7 @@ import (
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/base"
 	"bokee/pkg/jwtx"
+	"bokee/pkg/verifyx"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -84,6 +85,11 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 	var req request.ForgetPasswordReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		return
+	}
+	errStr := verifyx.CheckStruct(req)
+	if errStr != "" {
+		response.FailWithMessage(errStr, c)
 		return
 	}
 	cruId, _ := middleware.GetUserIDFromContext(c)
