@@ -1,8 +1,9 @@
 package commons
 
 import (
+	"bokee/internal/mods/interfaces"
 	"errors"
-	"gin-admin/internal/mods/interfaces"
+
 	"reflect"
 	"strings"
 )

@@ -1,7 +1,7 @@
 package articles
 
 import (
-	"gin-admin/internal/network/api/articles"
+	"bokee/internal/network/api/articles"
 	"github.com/gin-gonic/gin"
 )
 

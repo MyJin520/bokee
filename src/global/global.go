@@ -1,7 +1,7 @@
 package global
 
 import (
-	"gin-admin/config"
+	"bokee/config"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

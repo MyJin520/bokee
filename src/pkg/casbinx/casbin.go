@@ -1,8 +1,9 @@
 package casbinx
 
 import (
+	"bokee/global"
 	"fmt"
-	"gin-admin/global"
+	"github.com/casbin/cas
 	"github.com/casbin/casbin/v3"
 	"github.com/casbin/casbin/v3/model"
 	gormadapter "github.com/casbin/gorm-adapter/v3"

@@ -1,9 +1,10 @@
 package db
 
 import (
+	"bokee/config"
+	"bokee/global"
 	"fmt"
-	"gin-admin/config"
-	"gin-admin/global"
+	"gorm.io/driver
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

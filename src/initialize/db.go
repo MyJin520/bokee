@@ -1,13 +1,13 @@
 package initialize
 
 import (
+	"bokee/config"
+	"bokee/global"
+	"bokee/internal/mods/basic"
+	"bokee/pkg/cryptox/hash"
+	db "bokee/pkg/gormx"
+	"bokee/pkg/randx"
 	"fmt"
-	"gin-admin/config"
-	"gin-admin/global"
-	"gin-admin/internal/mods/basic"
-	"gin-admin/pkg/cryptox/hash"
-	db "gin-admin/pkg/gormx"
-	"gin-admin/pkg/randx"
 	"gorm.io/gorm"
 )
 

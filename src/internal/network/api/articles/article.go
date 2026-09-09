@@ -1,10 +1,10 @@
 package articles
 
 import (
-	"gin-admin/internal/mods/request"
-	"gin-admin/internal/mods/response"
-	"gin-admin/internal/network/middleware"
-	"gin-admin/internal/network/service/articles"
+	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
+	"bokee/internal/network/middleware"
+	"bokee/internal/network/service/articles"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"

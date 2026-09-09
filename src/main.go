@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gin-admin/initialize"
+	"bokee/initialize"
 )
 
 func main() {

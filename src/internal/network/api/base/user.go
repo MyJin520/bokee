@@ -1,11 +1,11 @@
 package base
 
 import (
-	"gin-admin/internal/mods/request"
-	"gin-admin/internal/mods/response"
-	"gin-admin/internal/network/middleware"
-	"gin-admin/internal/network/service/base"
-	"gin-admin/pkg/jwtx"
+	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
+	"bokee/internal/network/middleware"
+	"bokee/internal/network/service/base"
+	"bokee/pkg/jwtx"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"

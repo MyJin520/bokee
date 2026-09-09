@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"gin-admin/config"
-	"gin-admin/global"
+	"bokee/config"
+	"bokee/global"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"

@@ -1,12 +1,12 @@
 package middleware
 
 import (
-	"gin-admin/internal/mods/response"
-	"gin-admin/pkg/casbinx"
+	"bokee/internal/mods/response"
+	"bokee/pkg/casbinx"
 	"net/http"
 	"strconv"
 
-	"gin-admin/global"
+	"bokee/global"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )

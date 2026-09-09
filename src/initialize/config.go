@@ -1,7 +1,7 @@
 package initialize
 
 import (
-	"gin-admin/config"
+	"bokee/config"
 	"gopkg.in/yaml.v3"
 	"os"
 )

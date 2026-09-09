@@ -1,11 +1,12 @@
 package articles
 
 import (
+	"bokee/global"
+	"bokee/internal/mods/basic"
+	"bokee/internal/mods/request"
+	"bokee/pkg/commons"
 	"errors"
-	"gin-admin/global"
-	"gin-admin/internal/mods/basic"
-	"gin-admin/internal/mods/request"
-	"gin-admin/pkg/commons"
+	"go.ube
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

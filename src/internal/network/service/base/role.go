@@ -1,12 +1,13 @@
 package base
 
 import (
+	"bokee/global"
+	"bokee/internal/mods/basic"
+	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
+	"bokee/pkg/casbinx"
 	"errors"
-	"gin-admin/global"
-	"gin-admin/internal/mods/basic"
-	"gin-admin/internal/mods/request"
-	"gin-admin/internal/mods/response"
-	"gin-admin/pkg/casbinx"
+	"go.ube
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strconv"

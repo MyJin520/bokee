@@ -1,9 +1,9 @@
 package router
 
 import (
-	"gin-admin/internal/network/middleware"
-	"gin-admin/internal/network/router/articles"
-	"gin-admin/internal/network/router/base"
+	"bokee/internal/network/middleware"
+	"bokee/internal/network/router/articles"
+	"bokee/internal/network/router/base"
 	"github.com/gin-gonic/gin"
 )
 

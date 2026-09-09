@@ -1,11 +1,11 @@
 package jwtx
 
 import (
+	"bokee/global"
+	"bokee/pkg/ti
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"gin-admin/global"
-	"gin-admin/pkg/timex"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"

@@ -1,9 +1,9 @@
 package initialize
 
 import (
-	"gin-admin/config"
-	"gin-admin/internal/network/router"
-	"gin-admin/pkg/casbinx"
+	"bokee/config"
+	"bokee/internal/network/router"
+	"bokee/pkg/casbinx"
 )
 
 func ginServerInit(systemConfig config.SystemConfig) {

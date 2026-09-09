@@ -1,9 +1,9 @@
 package initialize
 
 import (
+	"bokee/config"
+	"bokee/global"
 	"fmt"
-	"gin-admin/config"
-	"gin-admin/global"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"

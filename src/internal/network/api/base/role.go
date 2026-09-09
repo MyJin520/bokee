@@ -1,9 +1,9 @@
 package base
 
 import (
-	"gin-admin/internal/mods/request"
-	"gin-admin/internal/mods/response"
-	"gin-admin/internal/network/service/base"
+	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
+	"bokee/internal/network/service/base"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"

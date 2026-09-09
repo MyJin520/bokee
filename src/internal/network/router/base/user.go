@@ -1,7 +1,7 @@
 package base
 
 import (
-	"gin-admin/internal/network/api/base"
+	"bokee/internal/network/api/base"
 	"github.com/gin-gonic/gin"
 )
 

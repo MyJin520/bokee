@@ -1,10 +1,10 @@
 package middleware
 
 import (
-	"gin-admin/global"
-	"gin-admin/internal/mods/response"
-	"gin-admin/pkg/jwtx"
-	"gin-admin/pkg/redisx"
+	"bokee/global"
+	"bokee/internal/mods/response"
+	"bokee/pkg/jwtx"
+	"bokee/pkg/redisx"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"

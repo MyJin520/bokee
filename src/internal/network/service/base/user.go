@@ -1,14 +1,14 @@
 package base
 
 import (
+	"bokee/global"
+	"bokee/internal/mods/basic"
+	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
+	"bokee/pkg/cryptox/hash"
+	"bokee/pkg/jwtx"
+	"bokee/pkg/redisx"
 	"errors"
-	"gin-admin/global"
-	"gin-admin/internal/mods/basic"
-	"gin-admin/internal/mods/request"
-	"gin-admin/internal/mods/response"
-	"gin-admin/pkg/cryptox/hash"
-	"gin-admin/pkg/jwtx"
-	"gin-admin/pkg/redisx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"

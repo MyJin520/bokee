@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"gin-admin/global"
+	"bokee/global"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
 const (
-	KeyPrefix     = "gin-admin"      // Key统一前缀
+	KeyPrefix     = "bokee"          // Key统一前缀
 	EmptyCacheTTL = 30 * time.Second // 空数据缓存时间（防穿透）
 	ErrPrefix     = "redis: "        // 错误统一前缀
 )

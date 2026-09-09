@@ -1,6 +1,6 @@
-module gin-admin
+module bokee
 
-go 1.26.3
+go 1.26.8
 
 require (
 	github.com/casbin/casbin/v3 v3.8.1

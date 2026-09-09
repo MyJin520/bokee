@@ -1,7 +1,7 @@
 package initialize
 
 import (
-	"gin-admin/pkg/casbinx"
+	"bokee/pkg/casbinx"
 )
 
 func initCasbin() {
