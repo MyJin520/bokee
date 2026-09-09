@@ -2,7 +2,7 @@ package jwtx
 
 import (
 	"bokee/global"
-	"bokee/pkg/ti
+	"bokee/pkg/timex"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
