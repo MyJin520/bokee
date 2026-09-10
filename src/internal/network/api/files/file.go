@@ -1,0 +1,42 @@
+package files
+
+import (
+	"bokee/global"
+	"bokee/internal/mods/basic"
+	"bokee/internal/mods/response"
+	"bokee/internal/network/service/files"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+type FileApi struct{}
+
+var fileService = &files.FileService{}
+
+func (f *FileApi) Uploads(ctx *gin.Context) {
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		global.Log.Error("表单解析失败：" + err.Error())
+		response.Fail(http.StatusBadRequest, "表单解析失败", ctx)
+		return
+	}
+	fileHeaders := form.File["files"]
+	if len(fileHeaders) == 0 {
+		response.Fail(http.StatusBadRequest, "未找到上传文件", ctx)
+		return
+	}
+
+	uploaded := make([]basic.Files, 0, len(fileHeaders))
+	for _, fileHeader := range fileHeaders {
+		fileRecord, err := fileService.Uploads(fileHeader)
+		if err != nil {
+			global.Log.Error("文件上传失败：" + err.Error())
+			response.FailWithMessage("文件上传失败："+err.Error(), ctx)
+			return
+		}
+		uploaded = append(uploaded, *fileRecord)
+	}
+
+	response.OkWithData(uploaded, "文件上传成功", ctx)
+}

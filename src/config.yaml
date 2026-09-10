@@ -45,7 +45,17 @@ jwt:
   expire: 2h                     # Access Token 有效期
   refresh-expire: 168h           # Refresh Token 有效期
   issuer: "kim-system"           # 签发者
-  audience:                      # 受众列表
+  audience: # 受众列表
     - "client"
 
+
+oss:
+  local-oss:
+    path: ./file_directory
+
+  minio-oss:
+    url: "xxx"
+
+  ali-oss:
+    url: "xxx"
 

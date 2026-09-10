@@ -4,6 +4,7 @@ import (
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/router/articles"
 	"bokee/internal/network/router/base"
+	"bokee/internal/network/router/files"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,6 +25,7 @@ func Routers() *gin.Engine {
 	base.InitUserRouter(publicGroup, privateGroup)
 	base.InitRoleRouter(privateGroup)
 	articles.InitArticleRouter(privateGroup)
+	files.InitFileRouter(publicGroup)
 
 	return engine
 }
