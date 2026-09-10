@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"path/filepath"
 	"strings"
 
 	"gorm.io/gorm"
@@ -43,7 +42,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 	// 2. 计算文件 hash 与扩展名
 	hashBytes := md5.Sum(data)
 	hashStr := hex.EncodeToString(hashBytes[:])
-	ext := filepath.Ext(fileHeader.Filename)
+	ext := mime.Extension
 
 	// 3. 根据 hash 去重：已存在相同内容则直接复用记录
 	var existing basic.Files
@@ -60,7 +59,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 	case "local":
 		url, err = filedx.UploadToLocal(data, ext)
 	case "minio":
-		err = errors.New("minio 上传暂未实现")
+		url, err = filedx.UploadToMinio(data, ext)
 	case "ali":
 		err = errors.New("阿里云 OSS 上传暂未实现")
 	default:

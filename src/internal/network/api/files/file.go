@@ -32,7 +32,7 @@ func (f *FileApi) Uploads(ctx *gin.Context) {
 		fileRecord, err := fileService.Uploads(fileHeader)
 		if err != nil {
 			global.Log.Error("文件上传失败：" + err.Error())
-			response.FailWithMessage("文件上传失败："+err.Error(), ctx)
+			response.FailWithMessage("文件上传失败", ctx)
 			return
 		}
 		uploaded = append(uploaded, *fileRecord)

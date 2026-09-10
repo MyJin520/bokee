@@ -1,7 +1,7 @@
 # 系统配置
 system:
   db-type: mysql       # mysql / postgres
-  oss-type: local      # 存储类型
+  oss-type: minio      # 存储类型
   addr: localhost:9999          # 服务端口
   default-admin-password: "123456"    # 初始管理员密码（留空则自动生成随机密码，控制台打印）
 
@@ -11,7 +11,7 @@ db:
   password: 123456
   db-name: kim
   config: charset=utf8mb4&parseTime=True&loc=Local  # MySQL参数/PG参数
-  path: localhost:3306  # 地址:端口
+  path: localhost:3307  # 地址:端口
   log-mode: error
   max-idle-conn: 10        # 最大空闲连接
   max-open-conn: 100       # 最大连接数
@@ -54,7 +54,12 @@ oss:
     path: ./file_directory
 
   minio-oss:
-    url: "xxx"
+    host: "127.0.0.1:39000"
+    access-key-id: kimJin
+    access-key-secret: kimJin123456
+    bucket-name: uploads-new
+    use-ssl: false
+    file-url: "http://127.0.0.1:39000"
 
   ali-oss:
     url: "xxx"

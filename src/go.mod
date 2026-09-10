@@ -11,6 +11,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/h2non/filetype v1.1.3
+	github.com/minio/minio-go/v7 v7.3.0
 	github.com/redis/go-redis/v9 v9.20.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.55.0
@@ -56,7 +57,6 @@ require (
 	github.com/microsoft/go-mssqldb v1.9.5 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
