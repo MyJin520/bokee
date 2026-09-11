@@ -4,11 +4,15 @@ import (
 	"bokee/config"
 	"bokee/global"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
-	"strings"
 )
 
 func initLogger(cfg *config.Config) {
@@ -19,10 +23,80 @@ func initLogger(cfg *config.Config) {
 	}
 }
 
-// levelLogger 用于按级别拆分日志文件
 type levelLogger struct {
 	level zapcore.Level
 	name  string
+}
+
+// dateDirWriter 按 年/月/日 目录隔离，级别文件放在当天目录下
+type dateDirWriter struct {
+	mu         sync.Mutex
+	logConfig  config.LogConfig
+	levelName  string
+	baseDir    string
+	currentDay string // "2006-01-02"
+	lj         *lumberjack.Logger
+}
+
+func newDateDirWriter(logConfig config.LogConfig, levelName, baseDir string) *dateDirWriter {
+	w := &dateDirWriter{
+		logConfig: logConfig,
+		levelName: levelName,
+		baseDir:   baseDir,
+	}
+	w.rotateIfNeeded()
+	return w
+}
+
+func (w *dateDirWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.rotateIfNeeded()
+	return w.lj.Write(p)
+}
+
+func (w *dateDirWriter) Sync() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.lj != nil {
+		return w.lj.Close()
+	}
+	return nil
+}
+
+func (w *dateDirWriter) rotateIfNeeded() {
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	if w.currentDay == today && w.lj != nil {
+		return
+	}
+
+	// 关闭旧文件
+	if w.lj != nil {
+		_ = w.lj.Close()
+	}
+
+	// 构建 年/月/日 目录：baseDir/2026/09/11
+	year := now.Format("2006")
+	month := now.Format("01")
+	day := now.Format("02")
+	dir := filepath.Join(w.baseDir, year, month, day)
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		dir = w.baseDir
+	}
+
+	filename := filepath.Join(dir, w.levelName+".log")
+
+	w.lj = &lumberjack.Logger{
+		Filename:   filename,
+		MaxSize:    w.logConfig.MaxSize,
+		MaxBackups: w.logConfig.MaxBackups,
+		MaxAge:     w.logConfig.MaxAge,
+		Compress:   w.logConfig.Compress,
+		LocalTime:  true,
+	}
+	w.currentDay = today
 }
 
 func NewLogger(logConfig config.LogConfig) (*zap.Logger, error) {
@@ -61,7 +135,6 @@ func NewLogger(logConfig config.LogConfig) (*zap.Logger, error) {
 	return logger, nil
 }
 
-// parseLogLevel 将字符串日志级别转换为 zapcore.Level
 func parseLogLevel(level string) zapcore.Level {
 	switch strings.ToLower(level) {
 	case "debug":
@@ -81,7 +154,6 @@ func parseLogLevel(level string) zapcore.Level {
 	}
 }
 
-// newEncoder 根据格式创建编码器
 func newEncoder(format string) zapcore.Encoder {
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
@@ -103,7 +175,6 @@ func newEncoder(format string) zapcore.Encoder {
 	return zapcore.NewConsoleEncoder(encoderConfig)
 }
 
-// newStdoutCore 创建标准输出 Core
 func newStdoutCore(encoder zapcore.Encoder, level zapcore.Level) zapcore.Core {
 	return zapcore.NewCore(
 		encoder,
@@ -112,7 +183,7 @@ func newStdoutCore(encoder zapcore.Encoder, level zapcore.Level) zapcore.Core {
 	)
 }
 
-// newFileCores 创建文件输出 Cores（按级别分文件）
+// newFileCores 按级别拆分 + 年/月/日 目录隔离
 func newFileCores(logConfig config.LogConfig, encoder zapcore.Encoder, globalLevel zapcore.Level, logDir string) []zapcore.Core {
 	levelLoggers := []levelLogger{
 		{zapcore.DebugLevel, "debug"},
@@ -127,13 +198,7 @@ func newFileCores(logConfig config.LogConfig, encoder zapcore.Encoder, globalLev
 			continue
 		}
 
-		writer := &lumberjack.Logger{
-			Filename:   fmt.Sprintf("%s/%s.log", logDir, ll.name),
-			MaxSize:    logConfig.MaxSize,
-			MaxBackups: logConfig.MaxBackups,
-			MaxAge:     logConfig.MaxAge,
-			Compress:   logConfig.Compress,
-		}
+		writer := newDateDirWriter(logConfig, ll.name, logDir)
 
 		core := zapcore.NewCore(
 			encoder,
