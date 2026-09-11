@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"mime"
 	"strings"
 	"sync"
 	"time"
@@ -63,10 +64,14 @@ func UploadToMinio(data []byte, ext string) (string, error) {
 		return "", err
 	}
 
-	ext = strings.TrimPrefix(ext, ".")
-
 	// 按日期分目录，并使用 UUID 保证对象名唯一
-	objectName := fmt.Sprintf("%s/%s.%s", time.Now().Format("2006/01/02"), randx.RandomUUID(), ext)
+	objectName := fmt.Sprintf("%s/%s%s", time.Now().Format("2006/01/02"), randx.RandomUUID(), ext)
+
+	// 根据扩展名推导 Content-Type，未知类型兜底
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
 
 	_, err = client.PutObject(
 		context.Background(),
@@ -74,7 +79,7 @@ func UploadToMinio(data []byte, ext string) (string, error) {
 		objectName,
 		bytes.NewReader(data),
 		int64(len(data)),
-		minio.PutObjectOptions{},
+		minio.PutObjectOptions{ContentType: contentType},
 	)
 	if err != nil {
 		return "", fmt.Errorf("上传文件到 MinIO 失败: %w", err)
@@ -85,5 +90,5 @@ func UploadToMinio(data []byte, ext string) (string, error) {
 	if base == "" {
 		return objectName, nil
 	}
-	return fmt.Sprintf("%s/%s/%s", base, cfg.BucketName, objectName), nil
+	return base + "/" + cfg.BucketName + "/" + objectName, nil
 }

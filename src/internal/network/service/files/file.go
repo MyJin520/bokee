@@ -42,7 +42,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 	// 2. 计算文件 hash 与扩展名
 	hashBytes := md5.Sum(data)
 	hashStr := hex.EncodeToString(hashBytes[:])
-	ext := mime.Extension
+	ext := "." + mime.Extension
 
 	// 3. 根据 hash 去重：已存在相同内容则直接复用记录
 	var existing basic.Files
