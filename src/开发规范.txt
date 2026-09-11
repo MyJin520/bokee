@@ -1,0 +1,6 @@
+1、后端返回给前端的错误禁止直接返回系统原始的错误信息，而是进行口语化反馈，具体错误信息由日志记录
+2、自定义错误返回不使用errors.New,统一使用fmt.Errorf
+3、错误统一使用error日志记录
+4、请求体错误响应统一使用FailWithRequest包装
+5、业务错误响应统一使用FailWithMessage包装
+6、json请求体需进行src/pkg/verifyx/tag_verify.go校验，错误响应同样使用FailWithRequest包装
