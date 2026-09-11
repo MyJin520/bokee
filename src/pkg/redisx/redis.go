@@ -13,13 +13,18 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
 	KeyPrefix     = "bokee"          // Key统一前缀
 	EmptyCacheTTL = 30 * time.Second // 空数据缓存时间（防穿透）
 	ErrPrefix     = "redis: "        // 错误统一前缀
+	emptyMarker   = "__EMPTY__"      // 空值缓存标记（防止缓存穿透）
 )
+
+// 用于防止缓存击穿的 singleflight Group
+var sfGroup singleflight.Group
 
 // getClient 安全获取Redis客户端
 func getClient() *redis.Client {
@@ -37,7 +42,7 @@ func minDuration(a, b time.Duration) time.Duration {
 	return b
 }
 
-// BuildKey 生成带命名空间的Key
+// BuildKey 生成带命名空间的 Key
 func BuildKey(parts ...string) string {
 	var validParts []string
 	validParts = append(validParts, KeyPrefix)
@@ -49,6 +54,7 @@ func BuildKey(parts ...string) string {
 	return strings.Join(validParts, ":")
 }
 
+// Exists 检查给定的 Key 是否存在于 Redis 中
 func Exists(ctx context.Context, key string) (bool, error) {
 	n, err := getClient().Exists(ctx, key).Result()
 	if err != nil {
@@ -57,6 +63,7 @@ func Exists(ctx context.Context, key string) (bool, error) {
 	return n > 0, nil
 }
 
+// Get 从 Redis 读取指定 Key 的字符串值
 func Get(ctx context.Context, key string) (string, error) {
 	val, err := getClient().Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
@@ -68,6 +75,7 @@ func Get(ctx context.Context, key string) (string, error) {
 	return val, nil
 }
 
+// Set 向 Redis 写入键值对并设置过期时间
 func Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	if err := getClient().Set(ctx, key, value, expiration).Err(); err != nil {
 		return fmt.Errorf(ErrPrefix+"Set failed: %w", err)
@@ -75,6 +83,7 @@ func Set(ctx context.Context, key string, value interface{}, expiration time.Dur
 	return nil
 }
 
+// Delete 从 Redis 中批量删除一个或多个 Key
 func Delete(ctx context.Context, keys ...string) error {
 	if err := getClient().Del(ctx, keys...).Err(); err != nil {
 		return fmt.Errorf(ErrPrefix+"Del failed: %w", err)
@@ -82,6 +91,7 @@ func Delete(ctx context.Context, keys ...string) error {
 	return nil
 }
 
+// TTL 获取指定 Key 的剩余生存时间（TTL）
 func TTL(ctx context.Context, key string) (time.Duration, error) {
 	d, err := getClient().TTL(ctx, key).Result()
 	if err != nil {
@@ -90,6 +100,7 @@ func TTL(ctx context.Context, key string) (time.Duration, error) {
 	return d, nil
 }
 
+// Expire 设置指定 Key 的过期时间
 func Expire(ctx context.Context, key string, expiration time.Duration) error {
 	if err := getClient().Expire(ctx, key, expiration).Err(); err != nil {
 		return fmt.Errorf(ErrPrefix+"Expire failed: %w", err)
@@ -97,6 +108,7 @@ func Expire(ctx context.Context, key string, expiration time.Duration) error {
 	return nil
 }
 
+// Incr 对指定 Key 的数值执行加 1 操作并返回递增后的结果
 func Incr(ctx context.Context, key string) (int64, error) {
 	n, err := getClient().Incr(ctx, key).Result()
 	if err != nil {
@@ -105,6 +117,7 @@ func Incr(ctx context.Context, key string) (int64, error) {
 	return n, nil
 }
 
+// GetJSON 从 Redis 获取 JSON 字符串并反序列化填入 dest 结构体/指针
 func GetJSON(ctx context.Context, key string, dest interface{}) error {
 	data, err := getClient().Get(ctx, key).Bytes()
 	if errors.Is(err, redis.Nil) {
@@ -113,12 +126,17 @@ func GetJSON(ctx context.Context, key string, dest interface{}) error {
 	if err != nil {
 		return fmt.Errorf(ErrPrefix+"GetJSON failed: %w", err)
 	}
+	// 命中空值标记，视为无数据
+	if string(data) == emptyMarker {
+		return nil
+	}
 	if err := json.Unmarshal(data, dest); err != nil {
 		return fmt.Errorf(ErrPrefix+"Unmarshal failed: %w", err)
 	}
 	return nil
 }
 
+// SetJSON 将任意 Go 结构体/变量序列化为 JSON 字符串后写入 Redis
 func SetJSON(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -130,49 +148,88 @@ func SetJSON(ctx context.Context, key string, value interface{}, expiration time
 	return nil
 }
 
-// Remember 缓存穿透保护：缓存不存在则查询数据源并回填
+// Remember 实现带防穿透与防击穿保护的缓存读写机制
+//
+// 机制说明：
+// 1. 优先读取缓存：若命中正常数据则反序列化到 dest；若命中空值标记则直接返回 nil
+// 2. 防击穿（Singleflight）：缓存未命中时，合并并发请求，保证同一时间只有一个请求调用 fallback 函数查询数据库
+// 3. 防穿透：当 fallback 返回 nil（数据库无数据）时，自动向 Redis 写入空值标记并设置短期 TTL
+// 4. 数据回填：查询到有效数据时自动写入 Redis，并将结果直接赋值给调用方的 dest 指针
 func Remember(ctx context.Context, key string, expiration time.Duration, fallback func() (interface{}, error), dest interface{}) error {
-	// 读取缓存
-	if err := GetJSON(ctx, key, dest); err != nil {
-		return err
-	}
-	// 命中缓存直接返回
-	if !isEmptyValue(dest) {
-		return nil
-	}
-
-	// 未命中，查询数据源
-	data, err := fallback()
-	if err != nil {
-		return fmt.Errorf(ErrPrefix+"Remember fallback failed: %w", err)
-	}
-
-	// 回填缓存
-	if data == nil {
-		// 缓存空值，防止缓存穿透
-		if err := SetJSON(ctx, key, struct{}{}, minDuration(expiration, EmptyCacheTTL)); err != nil {
-			global.Log.Error("缓存空值失败", zap.String("key", key), zap.Error(err))
+	// 1. 先尝试读取缓存
+	val, err := getClient().Get(ctx, key).Result()
+	if err == nil {
+		if val == emptyMarker {
+			// 命中空值缓存
+			return nil
+		}
+		// 正常命中，反序列化到 dest
+		if err := json.Unmarshal([]byte(val), dest); err != nil {
+			return fmt.Errorf(ErrPrefix+"Unmarshal failed: %w", err)
 		}
 		return nil
 	}
-
-	// 缓存正常数据
-	if err := SetJSON(ctx, key, data, expiration); err != nil {
-		global.Log.Error("回填缓存失败", zap.String("key", key), zap.Error(err))
+	if !errors.Is(err, redis.Nil) {
+		return fmt.Errorf(ErrPrefix+"Get failed: %w", err)
 	}
 
-	// 赋值给目标变量
-	_ = GetJSON(ctx, key, dest)
+	// 2. 缓存未命中，使用 singleflight 合并并发请求，防止击穿
+	data, err, _ := sfGroup.Do(key, func() (interface{}, error) {
+		// 执行数据源查询
+		result, err := fallback()
+		if err != nil {
+			return nil, fmt.Errorf(ErrPrefix+"Remember fallback failed: %w", err)
+		}
+
+		if result == nil {
+			// 缓存空值标记，防止缓存穿透
+			ttl := minDuration(expiration, EmptyCacheTTL)
+			if setErr := getClient().Set(ctx, key, emptyMarker, ttl).Err(); setErr != nil {
+				global.Log.Error("缓存空值失败", zap.String("key", key), zap.Error(setErr))
+			}
+			return nil, nil
+		}
+
+		// 序列化并回填正常数据
+		b, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf(ErrPrefix+"Marshal failed: %w", err)
+		}
+		if setErr := getClient().Set(ctx, key, b, expiration).Err(); setErr != nil {
+			// 写缓存失败只记录日志，不影响当前请求返回数据
+			global.Log.Error("回填缓存失败", zap.String("key", key), zap.Error(setErr))
+		}
+
+		return result, nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// 3. 将结果赋值给调用方的 dest（每个等待的 goroutine 都会执行到这里）
+	if data == nil {
+		// 空值，直接返回
+		return nil
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf(ErrPrefix+"Marshal failed: %w", err)
+	}
+	if err := json.Unmarshal(b, dest); err != nil {
+		return fmt.Errorf(ErrPrefix+"Unmarshal failed: %w", err)
+	}
 	return nil
 }
 
-// tokenBlacklistKey 生成 token 黑名单 key
+// tokenBlacklistKey 生成 Token 在 Redis 中的黑名单 Key（使用 SHA-256 哈希防超长及暴露敏感信息）
 func tokenBlacklistKey(tokenString string) string {
 	h := sha256.Sum256([]byte(tokenString))
 	return BuildKey("token", "blacklist", fmt.Sprintf("%x", h))
 }
 
-// BlacklistToken 将 token 加入黑名单，TTL 自动设为 token 剩余有效期
+// BlacklistToken 将指定的 Token 加入 Redis 黑名单，TTL 通常设置为该 Token 的剩余有效时长
 func BlacklistToken(ctx context.Context, tokenString string, ttl time.Duration) error {
 	key := tokenBlacklistKey(tokenString)
 	if err := getClient().Set(ctx, key, "1", ttl).Err(); err != nil {
@@ -181,7 +238,7 @@ func BlacklistToken(ctx context.Context, tokenString string, ttl time.Duration) 
 	return nil
 }
 
-// IsTokenBlacklisted 检查 token 是否已被拉黑
+// IsTokenBlacklisted 检查指定 Token 是否存在于黑名单中
 func IsTokenBlacklisted(ctx context.Context, tokenString string) (bool, error) {
 	key := tokenBlacklistKey(tokenString)
 	n, err := getClient().Exists(ctx, key).Result()
@@ -189,13 +246,4 @@ func IsTokenBlacklisted(ctx context.Context, tokenString string) (bool, error) {
 		return false, fmt.Errorf(ErrPrefix+"IsTokenBlacklisted failed: %w", err)
 	}
 	return n > 0, nil
-}
-
-// isEmptyValue 判断是否为空结构体/空值
-func isEmptyValue(v interface{}) bool {
-	bytes, err := json.Marshal(v)
-	if err != nil {
-		return true
-	}
-	return string(bytes) == "{}"
 }
