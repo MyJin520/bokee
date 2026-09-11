@@ -102,7 +102,7 @@ func (a *ArticleApi) GetInfo(c *gin.Context) {
 		return
 	}
 
-	response.OkWithData(article, "文章详情获取成功", c)
+	response.OkWithDetailed(article, "文章详情获取成功", c)
 }
 
 func (a *ArticleApi) ListByUser(c *gin.Context) {

@@ -47,8 +47,9 @@ func OkWithMessage(msg string, c *gin.Context) {
 }
 
 // OkWithData 成功，返回数据
+// Deprecated: 已废弃，请使用 OkWithDetailed 替代
 func OkWithData[T any](data T, msg string, c *gin.Context) {
-	Result(SUCCESS, data, msg, c)
+	OkWithDetailed(data, msg, c)
 }
 
 // OkWithDetailed 成功，返回数据和自定义消息

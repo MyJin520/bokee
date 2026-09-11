@@ -34,7 +34,7 @@ func (a *RoleApi) Create(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithData(resp, "创建角色成功", c)
+	response.OkWithDetailed(resp, "创建角色成功", c)
 }
 
 // Update 更新角色
@@ -90,7 +90,7 @@ func (a *RoleApi) GetInfo(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithData(resp, "获取角色详情成功", c)
+	response.OkWithDetailed(resp, "获取角色详情成功", c)
 }
 
 // List 分页获取角色列表

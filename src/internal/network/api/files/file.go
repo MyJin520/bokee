@@ -38,5 +38,5 @@ func (f *FileApi) Uploads(ctx *gin.Context) {
 		uploaded = append(uploaded, *fileRecord)
 	}
 
-	response.OkWithData(uploaded, "文件上传成功", ctx)
+	response.OkWithDetailed(uploaded, "文件上传成功", ctx)
 }

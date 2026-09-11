@@ -53,7 +53,7 @@ func (u *UserApi) Login(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithData(jwtResponse, "登录成功", c)
+	response.OkWithDetailed(jwtResponse, "登录成功", c)
 }
 
 // ParseToken TODO 测试解析Token
@@ -75,7 +75,7 @@ func (u *UserApi) ParseToken(c *gin.Context) {
 		response.FailWithMessage("无效的认证令牌", c)
 		return
 	}
-	response.OkWithData(claims, "解析成功", c)
+	response.OkWithDetailed(claims, "解析成功", c)
 }
 
 func (u *UserApi) Update(c *gin.Context) {
@@ -179,7 +179,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithData(user, "获取用户信息成功", c)
+	response.OkWithDetailed(user, "获取用户信息成功", c)
 }
 
 func (u *UserApi) List(c *gin.Context) {
