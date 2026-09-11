@@ -194,28 +194,81 @@ func InitSuperRoleCasbin(engine *gin.Engine) {
 	}
 
 	routes := engine.Routes()
-	global.Log.Info(fmt.Sprintf("开始为超级管理员 [%s] 授权 %d 条路由", roleCodeStr, len(routes)))
+	global.Log.Info(fmt.Sprintf("开始为超级管理员 [%s] 同步路由权限，共扫描 %d 条路由", roleCodeStr, len(routes)))
 
-	policies := make([][]string, 0, len(routes))
+	// 构建期望的策略集合（path + method）
+	desired := make(map[string]struct{}, len(routes))
+	desiredPolicies := make([][]string, 0, len(routes))
 	for _, route := range routes {
 		if strings.HasPrefix(route.Path, "/pub/") {
 			continue
 		}
-		policies = append(policies, []string{roleCodeStr, route.Path, route.Method})
+		key := route.Path + "|" + route.Method
+		if _, exists := desired[key]; exists {
+			continue // 防止重复路由
+		}
+		desired[key] = struct{}{}
+		desiredPolicies = append(desiredPolicies, []string{roleCodeStr, route.Path, route.Method})
 	}
 
-	if len(policies) > 0 {
-		_, err = enforcer.RemoveFilteredPolicy(0, roleCodeStr)
-		if err != nil {
-			global.Log.Error("移除旧策略失败", zap.Error(err))
+	// 获取当前超级角色已有的策略
+	existingPolicies, err := enforcer.GetFilteredPolicy(0, roleCodeStr)
+	if err != nil {
+		global.Log.Error("获取超级管理员现有策略失败", zap.Error(err))
+		return
+	}
+
+	existing := make(map[string]struct{}, len(existingPolicies))
+	for _, p := range existingPolicies {
+		if len(p) < 3 {
+			continue
+		}
+		key := p[1] + "|" + p[2]
+		existing[key] = struct{}{}
+	}
+
+	// 计算需要新增和删除的策略
+	var toAdd [][]string
+	var toRemove [][]string
+
+	for _, p := range desiredPolicies {
+		key := p[1] + "|" + p[2]
+		if _, ok := existing[key]; !ok {
+			toAdd = append(toAdd, p)
+		}
+	}
+
+	for _, p := range existingPolicies {
+		if len(p) < 3 {
+			continue
+		}
+		key := p[1] + "|" + p[2]
+		if _, ok := desired[key]; !ok {
+			toRemove = append(toRemove, p)
+		}
+	}
+
+	// 执行增量更新
+	if len(toRemove) > 0 {
+		if _, err := enforcer.RemovePolicies(toRemove); err != nil {
+			global.Log.Error("移除过期策略失败", zap.Error(err))
 			return
 		}
-		_, err = enforcer.AddPolicies(policies)
-		if err != nil {
-			global.Log.Error("批量添加策略失败", zap.Error(err))
-		} else {
-			global.Log.Info(fmt.Sprintf("超级管理员授权完成，共添加 %d 条策略", len(policies)))
+		global.Log.Info(fmt.Sprintf("超级管理员移除过期策略 %d 条", len(toRemove)))
+	}
+
+	if len(toAdd) > 0 {
+		if _, err := enforcer.AddPolicies(toAdd); err != nil {
+			global.Log.Error("批量添加新策略失败", zap.Error(err))
+			return
 		}
+		global.Log.Info(fmt.Sprintf("超级管理员新增策略 %d 条", len(toAdd)))
+	}
+
+	if len(toAdd) == 0 && len(toRemove) == 0 {
+		global.Log.Info("超级管理员策略已是最新，无需更新")
+	} else {
+		global.Log.Info(fmt.Sprintf("超级管理员权限同步完成（新增 %d，删除 %d）", len(toAdd), len(toRemove)))
 	}
 }
 
