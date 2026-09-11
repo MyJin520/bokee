@@ -151,14 +151,14 @@ func Remember(ctx context.Context, key string, expiration time.Duration, fallbac
 	if data == nil {
 		// 缓存空值，防止缓存穿透
 		if err := SetJSON(ctx, key, struct{}{}, minDuration(expiration, EmptyCacheTTL)); err != nil {
-			global.Log.Warn("缓存空值失败", zap.String("key", key), zap.Error(err))
+			global.Log.Error("缓存空值失败", zap.String("key", key), zap.Error(err))
 		}
 		return nil
 	}
 
 	// 缓存正常数据
 	if err := SetJSON(ctx, key, data, expiration); err != nil {
-		global.Log.Warn("回填缓存失败", zap.String("key", key), zap.Error(err))
+		global.Log.Error("回填缓存失败", zap.String("key", key), zap.Error(err))
 	}
 
 	// 赋值给目标变量

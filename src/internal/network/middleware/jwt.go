@@ -36,7 +36,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 解析并验证 token
 		claims, err := jwtx.ParseToken(tokenString)
 		if err != nil {
-			global.Log.Warn("无效的 JWT 令牌", zap.Error(err))
+			global.Log.Error("无效的 JWT 令牌", zap.Error(err))
 			response.Fail(http.StatusUnauthorized, "无效或过期的认证令牌", c)
 			c.Abort()
 			return
@@ -45,7 +45,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 检查 Redis 黑名单（token 是否已登出）
 		blocked, err := redisx.IsTokenBlacklisted(c, tokenString)
 		if err != nil {
-			global.Log.Warn("Redis 黑名单查询失败", zap.String("jti", claims.ID), zap.Error(err))
+			global.Log.Error("Redis 黑名单查询失败", zap.String("jti", claims.ID), zap.Error(err))
 			// 查询失败放行，不阻断请求
 		} else if blocked {
 			global.Log.Warn("Token 已被登出", zap.String("jti", claims.ID), zap.Uint("userID", claims.UserID))

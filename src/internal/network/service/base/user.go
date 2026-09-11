@@ -149,7 +149,7 @@ func (s *UserService) Logout(c *gin.Context) error {
 	// 解析 token 获取过期时间
 	claims, err := jwtx.ParseToken(tokenString)
 	if err != nil {
-		global.Log.Warn("登出失败：无效的认证令牌", zap.Error(err))
+		global.Log.Error("登出失败：无效的认证令牌", zap.Error(err))
 		return fmt.Errorf("无效的认证令牌")
 	}
 
@@ -161,7 +161,7 @@ func (s *UserService) Logout(c *gin.Context) error {
 
 	// 写入 Redis 黑名单
 	if err := redisx.BlacklistToken(c, tokenString, remaining); err != nil {
-		global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
+		global.Log.Error("登出写入 Redis 黑名单失败", zap.Error(err))
 		return fmt.Errorf("登出失败，请稍后重试")
 	}
 

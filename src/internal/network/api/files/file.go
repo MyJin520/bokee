@@ -5,7 +5,6 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/files"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -18,13 +17,13 @@ var fileService = &files.FileService{}
 func (f *FileApi) Uploads(ctx *gin.Context) {
 	form, err := ctx.MultipartForm()
 	if err != nil {
-		global.Log.Warn("表单解析失败", zap.Error(err))
-		response.Fail(http.StatusBadRequest, "表单解析失败", ctx)
+		global.Log.Error("表单解析失败", zap.Error(err))
+		response.FailWithRequest("表单解析失败", ctx)
 		return
 	}
 	fileHeaders := form.File["files"]
 	if len(fileHeaders) == 0 {
-		response.Fail(http.StatusBadRequest, "未找到上传文件", ctx)
+		response.FailWithRequest("未找到上传文件", ctx)
 		return
 	}
 

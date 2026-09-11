@@ -71,6 +71,11 @@ func Fail(code int, msg string, c *gin.Context) {
 	Result(code, struct{}{}, msg, c)
 }
 
+// FailWithRequest 请求体参数错误
+func FailWithRequest(msg string, c *gin.Context) {
+	Result(http.StatusBadRequest, struct{}{}, msg, c)
+}
+
 // FailWithMessage 通用失败，使用默认 ERROR 码
 func FailWithMessage(msg string, c *gin.Context) {
 	Result(ERROR, struct{}{}, msg, c)
