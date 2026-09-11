@@ -2,7 +2,7 @@ package commons
 
 import (
 	"bokee/internal/mods/interfaces"
-	"errors"
+	"fmt"
 
 	"reflect"
 	"strings"
@@ -30,7 +30,7 @@ func StructToUpdateMap(data interface{}) map[string]interface{} {
 // CheckOwnership 校验当前用户是否拥有该资源，否则返回"无权操作"错误
 func CheckOwnership(record interfaces.Ownable, userId uint) error {
 	if record.GetUserID() != userId {
-		return errors.New("无权操作他人资源")
+		return fmt.Errorf("无权操作他人资源")
 	}
 	return nil
 }

@@ -5,7 +5,7 @@ import (
 	"bokee/pkg/timex"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -75,7 +75,7 @@ func GenerateToken(userID uint, username string, roleCodes []uint) (string, erro
 func ParseToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
+			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return getJwtSecret(), nil
 	})
@@ -88,14 +88,14 @@ func ParseToken(tokenString string) (*CustomClaims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token")
+	return nil, fmt.Errorf("invalid token")
 }
 
 // RefreshToken 刷新 token
 func RefreshToken(oldTokenString string, extendDuration time.Duration) (string, error) {
 	claims, err := ParseToken(oldTokenString)
 	if err != nil {
-		return "", errors.New("invalid old token, can't refresh")
+		return "", fmt.Errorf("invalid old token, can't refresh")
 	}
 
 	// 生成新的过期时间

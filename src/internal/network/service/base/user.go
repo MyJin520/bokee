@@ -9,6 +9,7 @@ import (
 	"bokee/pkg/jwtx"
 	"bokee/pkg/redisx"
 	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -22,13 +23,15 @@ func (s *UserService) Create(req request.UserCreateReq) error {
 	var count int64
 	global.DB.Model(&basic.User{}).Where("phone = ? OR email = ?", req.Phone, req.Email).Count(&count)
 	if count > 0 {
-		return errors.New("注册失败>手机号或邮箱已被注册")
+		global.Log.Warn("注册失败：手机号或邮箱已被注册",
+			zap.String("phone", req.Phone), zap.String("email", req.Email))
+		return fmt.Errorf("注册失败>手机号或邮箱已被注册")
 	}
 
 	hashedPwd, err := hash.GeneratePassword(req.Password)
 	if err != nil {
 		global.Log.Error("用户密码加密失败", zap.Error(err))
-		return errors.New("注册失败，密码加密失败请联系管理员")
+		return fmt.Errorf("注册失败，密码加密失败请联系管理员")
 	}
 
 	user := &basic.User{
@@ -41,7 +44,7 @@ func (s *UserService) Create(req request.UserCreateReq) error {
 
 	if err := global.DB.Create(user).Error; err != nil {
 		global.Log.Error("注册失败", zap.Error(err))
-		return errors.New("注册失败，请稍后重试")
+		return fmt.Errorf("注册失败，请稍后重试")
 	}
 	return nil
 }
@@ -55,20 +58,20 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("登录失败：用户名不存在", zap.String("username", req.Username))
-			return nil, errors.New("用户名或密码错误")
+			return nil, fmt.Errorf("用户名或密码错误")
 		}
 		global.Log.Error("登录数据库查询失败", zap.Error(err), zap.String("username", req.Username))
-		return nil, errors.New("系统繁忙，请稍后重试")
+		return nil, fmt.Errorf("系统繁忙，请稍后重试")
 	}
 
 	if user.Status != "normal" {
 		global.Log.Warn("账号已被禁用", zap.String("username", req.Username))
-		return nil, errors.New("账号已被禁用，请联系管理员")
+		return nil, fmt.Errorf("账号已被禁用，请联系管理员")
 	}
 
 	if err := hash.CompareHashAndPassword(user.Password, req.Password); err != nil {
 		global.Log.Warn("密码校验失败", zap.String("username", req.Username))
-		return nil, errors.New("用户名或密码错误")
+		return nil, fmt.Errorf("用户名或密码错误")
 	}
 
 	roleCodes := make([]uint, 0, len(user.Roles))
@@ -79,7 +82,7 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error)
 	token, err := jwtx.GenerateToken(user.ID, user.Name, roleCodes)
 	if err != nil {
 		global.Log.Error("生成Token失败", zap.Error(err), zap.Uint("userID", user.ID))
-		return nil, errors.New("登录失败，请稍后重试")
+		return nil, fmt.Errorf("登录失败，请稍后重试")
 	}
 
 	jwtResponse := &response.JwtResp{
@@ -111,15 +114,18 @@ func (s *UserService) Update(req request.UserUpdateReq, uid uint) error {
 	}
 
 	if len(updates) == 0 {
-		return errors.New("没有需要更新的字段")
+		global.Log.Warn("更新用户失败：没有需要更新的字段", zap.Uint("userID", uid))
+		return fmt.Errorf("没有需要更新的字段")
 	}
 
 	result := global.DB.Model(&basic.User{}).Where("id = ?", uid).Updates(updates)
 	if result.Error != nil {
-		return result.Error
+		global.Log.Error("更新用户失败", zap.Error(result.Error), zap.Uint("userID", uid))
+		return fmt.Errorf("更新用户失败，请稍后重试")
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("用户不存在或未做任何更改")
+		global.Log.Warn("更新用户失败：用户不存在或未做任何更改", zap.Uint("userID", uid))
+		return fmt.Errorf("用户不存在或未做任何更改")
 	}
 	return nil
 }
@@ -129,19 +135,22 @@ func (s *UserService) Logout(c *gin.Context) error {
 	// 从请求头提取 token
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		return errors.New("未提供认证令牌")
+		global.Log.Warn("登出失败：未提供认证令牌")
+		return fmt.Errorf("未提供认证令牌")
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		return errors.New("认证令牌格式错误")
+		global.Log.Warn("登出失败：认证令牌格式错误")
+		return fmt.Errorf("认证令牌格式错误")
 	}
 	tokenString := parts[1]
 
 	// 解析 token 获取过期时间
 	claims, err := jwtx.ParseToken(tokenString)
 	if err != nil {
-		return errors.New("无效的认证令牌")
+		global.Log.Warn("登出失败：无效的认证令牌", zap.Error(err))
+		return fmt.Errorf("无效的认证令牌")
 	}
 
 	// 计算 token 剩余有效期，作为黑名单 TTL
@@ -153,7 +162,7 @@ func (s *UserService) Logout(c *gin.Context) error {
 	// 写入 Redis 黑名单
 	if err := redisx.BlacklistToken(c, tokenString, remaining); err != nil {
 		global.Log.Warn("登出写入 Redis 黑名单失败", zap.Error(err))
-		return errors.New("登出失败，请稍后重试")
+		return fmt.Errorf("登出失败，请稍后重试")
 	}
 
 	global.Log.Info("用户登出成功",
@@ -171,10 +180,11 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 		err := tx.Where("id = ?", cruId).Preload("Roles").First(&currentUser).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("用户不存在")
+				global.Log.Warn("重置密码失败：用户不存在", zap.Uint("userID", cruId))
+				return fmt.Errorf("用户不存在")
 			}
 			global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", cruId))
-			return errors.New("查询用户失败，请稍后重试")
+			return fmt.Errorf("查询用户失败，请稍后重试")
 		}
 
 		isAdmin := false
@@ -195,7 +205,8 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 			}
 		} else {
 			if req.SpecifyUserID != 0 && req.SpecifyUserID != cruId {
-				return errors.New("非管理员不能修改其他用户的密码")
+				global.Log.Warn("重置密码失败：非管理员不能修改其他用户的密码", zap.Uint("userID", cruId))
+				return fmt.Errorf("非管理员不能修改其他用户的密码")
 			}
 			targetUserID = cruId
 		}
@@ -203,7 +214,8 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 		// 非管理员校验旧密码（currentUser 已包含 password，无需二次查询）
 		if !isAdmin {
 			if err := hash.CompareHashAndPassword(currentUser.Password, req.OldPassword); err != nil {
-				return errors.New("旧密码错误，请输入正确的旧密码")
+				global.Log.Warn("重置密码失败：旧密码错误", zap.Uint("userID", cruId))
+				return fmt.Errorf("旧密码错误，请输入正确的旧密码")
 			}
 		}
 
@@ -212,10 +224,11 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 			var exists int64
 			if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Count(&exists).Error; err != nil {
 				global.Log.Error("查询目标用户失败", zap.Error(err), zap.Uint("targetUserID", targetUserID))
-				return errors.New("查询目标用户失败，请稍后重试")
+				return fmt.Errorf("查询目标用户失败，请稍后重试")
 			}
 			if exists == 0 {
-				return errors.New("目标用户不存在")
+				global.Log.Warn("重置密码失败：目标用户不存在", zap.Uint("targetUserID", targetUserID))
+				return fmt.Errorf("目标用户不存在")
 			}
 		}
 
@@ -223,13 +236,13 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 		newPassword, err := hash.GeneratePassword(req.NewPassword)
 		if err != nil {
 			global.Log.Error("密码加密失败", zap.Error(err))
-			return errors.New("密码加密失败，请稍后重试")
+			return fmt.Errorf("密码加密失败，请稍后重试")
 		}
 
 		// 更新密码
 		if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Update("password", newPassword).Error; err != nil {
 			global.Log.Error("更新密码失败", zap.Error(err), zap.Uint("targetUserID", targetUserID))
-			return errors.New("修改密码失败，请稍后重试")
+			return fmt.Errorf("修改密码失败，请稍后重试")
 		}
 
 		global.Log.Info("密码修改成功",
@@ -248,32 +261,35 @@ func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 		err := tx.Where("id = ?", req.UserID).First(&user).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("用户不存在")
+				global.Log.Warn("绑定角色失败：用户不存在", zap.Uint("userID", req.UserID))
+				return fmt.Errorf("用户不存在")
 			}
 			global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", req.UserID))
-			return errors.New("查询用户失败，请稍后重试")
+			return fmt.Errorf("查询用户失败，请稍后重试")
 		}
 
 		// 2. 校验所有角色是否存在
 		if len(req.RoleIDs) == 0 {
-			return errors.New("角色ID列表不能为空")
+			global.Log.Warn("绑定角色失败：角色ID列表不能为空", zap.Uint("userID", req.UserID))
+			return fmt.Errorf("角色ID列表不能为空")
 		}
 
 		var roles []basic.Role
 		if err := tx.Where("id IN ?", req.RoleIDs).Find(&roles).Error; err != nil {
 			global.Log.Error("查询角色失败", zap.Error(err))
-			return errors.New("查询角色失败，请稍后重试")
+			return fmt.Errorf("查询角色失败，请稍后重试")
 		}
 
 		if len(roles) != len(req.RoleIDs) {
-			return errors.New("部分角色不存在，请检查角色ID")
+			global.Log.Warn("绑定角色失败：部分角色不存在", zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
+			return fmt.Errorf("部分角色不存在，请检查角色ID")
 		}
 
 		// 3. 获取用户已绑定的角色，过滤出尚未绑定的角色进行追加
 		var currentRoles []basic.Role
 		if err := tx.Model(&user).Association("Roles").Find(&currentRoles); err != nil {
 			global.Log.Error("查询用户当前角色失败", zap.Error(err))
-			return errors.New("查询用户当前角色失败，请稍后重试")
+			return fmt.Errorf("查询用户当前角色失败，请稍后重试")
 		}
 
 		currentRoleIDs := make(map[uint]bool)
@@ -289,14 +305,15 @@ func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 		}
 
 		if len(newRoles) == 0 {
-			return errors.New("指定角色已绑定，无需重复绑定")
+			global.Log.Warn("绑定角色失败：指定角色已绑定", zap.Uint("userID", req.UserID))
+			return fmt.Errorf("指定角色已绑定，无需重复绑定")
 		}
 
 		// 4. 追加新角色（GORM many2many 自动写入 sys_user_roles 表）
 		if err := tx.Model(&user).Association("Roles").Append(&newRoles); err != nil {
 			global.Log.Error("绑定用户角色失败", zap.Error(err),
 				zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
-			return errors.New("角色绑定失败，请稍后重试")
+			return fmt.Errorf("角色绑定失败，请稍后重试")
 		}
 
 		global.Log.Info("用户角色绑定成功",
@@ -327,13 +344,15 @@ func (s *UserService) List(req request.UserListReq) ([]basic.User, int64, error)
 	var total int64
 	err := query.Count(&total).Error
 	if err != nil {
-		return nil, 0, err
+		global.Log.Error("统计用户总数失败", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
 	var users []basic.User
 	err = query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&users).Error
 	if err != nil {
-		return nil, 0, err
+		global.Log.Error("查询用户列表失败", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
 	return users, total, nil
@@ -343,7 +362,12 @@ func (s *UserService) GetInfo(id uint) (basic.User, error) {
 	var user basic.User
 	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
 	if err != nil {
-		return basic.User{}, err
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			global.Log.Warn("获取用户信息失败：用户不存在", zap.Uint("userID", id))
+			return basic.User{}, fmt.Errorf("用户不存在")
+		}
+		global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", id))
+		return basic.User{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
 	return user, nil
 }

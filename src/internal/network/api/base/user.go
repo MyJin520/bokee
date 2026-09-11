@@ -1,6 +1,7 @@
 package base
 
 import (
+	"bokee/global"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/middleware"
@@ -8,6 +9,7 @@ import (
 	"bokee/pkg/jwtx"
 	"bokee/pkg/verifyx"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 )
@@ -19,7 +21,8 @@ var userService = &base.UserService{}
 func (u *UserApi) Create(c *gin.Context) {
 	var req request.UserCreateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("用户创建请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	if err := userService.Create(req); err != nil {
@@ -32,7 +35,8 @@ func (u *UserApi) Create(c *gin.Context) {
 func (u *UserApi) Login(c *gin.Context) {
 	var req request.UserLoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("用户登录请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	jwtResponse, err := userService.Login(req)
@@ -47,12 +51,14 @@ func (u *UserApi) Login(c *gin.Context) {
 func (u *UserApi) ParseToken(c *gin.Context) {
 	var req request.TokenParsingReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("Token 解析请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	claims, err := jwtx.ParseToken(req.Token)
 	if err != nil {
-		response.FailWithMessage(err.Error(), c)
+		global.Log.Warn("解析 Token 失败", zap.Error(err))
+		response.FailWithMessage("无效的认证令牌", c)
 		return
 	}
 	response.OkWithData(claims, "解析成功", c)
@@ -61,7 +67,8 @@ func (u *UserApi) ParseToken(c *gin.Context) {
 func (u *UserApi) Update(c *gin.Context) {
 	var req request.UserUpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("用户更新请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	userID, _ := middleware.GetUserIDFromContext(c)
@@ -84,11 +91,13 @@ func (u *UserApi) Logout(c *gin.Context) {
 func (u *UserApi) ForgetPassword(c *gin.Context) {
 	var req request.ForgetPasswordReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("重置密码请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	errStr := verifyx.CheckStruct(req)
 	if errStr != "" {
+		global.Log.Warn("重置密码参数校验失败", zap.String("err", errStr))
 		response.FailWithMessage(errStr, c)
 		return
 	}
@@ -104,7 +113,8 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 func (u *UserApi) BindRoles(c *gin.Context) {
 	var req request.UserRoleBindReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("角色绑定请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 
@@ -126,6 +136,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 	if userIDStr != "" {
 		parsed, parseErr := strconv.ParseUint(userIDStr, 10, 32)
 		if parseErr != nil {
+			global.Log.Warn("用户ID格式错误", zap.String("userID", userIDStr))
 			response.FailWithMessage("无效的用户ID", c)
 			return
 		}
@@ -133,6 +144,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 	} else {
 		userID, ok = middleware.GetUserIDFromContext(c)
 		if !ok {
+			global.Log.Warn("无法获取当前用户信息")
 			response.FailWithMessage("无法获取当前用户信息", c)
 			return
 		}
@@ -149,7 +161,8 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 func (u *UserApi) List(c *gin.Context) {
 	var req request.UserListReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("用户列表请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	req.Normalize()

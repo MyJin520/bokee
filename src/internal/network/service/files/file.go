@@ -13,6 +13,7 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/pkg/filedx"
 
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -22,24 +23,30 @@ type FileService struct{}
 func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, error) {
 	src, err := fileHeader.Open()
 	if err != nil {
-		return nil, fmt.Errorf("打开文件失败: %w", err)
+		global.Log.Error("打开文件失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
+		return nil, fmt.Errorf("打开文件失败")
 	}
 	defer src.Close()
 
 	data, err := io.ReadAll(src)
 	if err != nil {
-		return nil, fmt.Errorf("读取文件失败: %w", err)
+		global.Log.Error("读取文件失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
+		return nil, fmt.Errorf("读取文件失败")
 	}
 	const maxSize = 32 << 20 // 32MB
 	if len(data) > maxSize {
+		global.Log.Warn("文件上传失败：文件过大", zap.String("filename", fileHeader.Filename), zap.Int("size", len(data)))
 		return nil, fmt.Errorf("文件过大，最大允许 %d MB", maxSize>>20)
 	}
 
 	mime, err := filedx.GetFileMIME(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("检测文件类型失败: %w", err)
+		global.Log.Warn("文件上传失败：无法识别文件类型", zap.String("filename", fileHeader.Filename))
+		return nil, fmt.Errorf("无法识别文件类型")
 	}
 	if !filedx.CheckIfAllowed(mime.MIME.Value) {
+		global.Log.Warn("文件上传失败：不允许的文件类型",
+			zap.String("filename", fileHeader.Filename), zap.String("mime", mime.MIME.Value))
 		return nil, fmt.Errorf("不允许的文件类型: %s", mime.MIME.Value)
 	}
 
@@ -51,7 +58,8 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 	if err := global.DB.Where("hash = ?", hashStr).First(&existing).Error; err == nil {
 		return &existing, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("查询文件记录失败: %w", err)
+		global.Log.Error("查询文件记录失败", zap.Error(err), zap.String("hash", hashStr))
+		return nil, fmt.Errorf("查询文件记录失败")
 	}
 
 	var url string
@@ -66,7 +74,8 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 		err = fmt.Errorf("不支持的 oss 类型: %s", global.Config.System.OssType)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("上传文件失败: %w", err)
+		global.Log.Error("上传文件失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
+		return nil, fmt.Errorf("上传文件失败，请稍后重试")
 	}
 
 	fileRecord := &basic.Files{
@@ -77,7 +86,8 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 		Hash:             hashStr,
 	}
 	if err := global.DB.Create(fileRecord).Error; err != nil {
-		return nil, fmt.Errorf("文件记录入库失败: %w", err)
+		global.Log.Error("文件记录入库失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
+		return nil, fmt.Errorf("文件记录入库失败")
 	}
 	return fileRecord, nil
 }

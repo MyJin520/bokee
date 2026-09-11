@@ -6,6 +6,7 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/pkg/commons"
 	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -22,7 +23,7 @@ func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) e
 	}
 	if err := global.DB.Create(&newArticle).Error; err != nil {
 		global.Log.Error("发表文章失败", zap.Error(err), zap.Uint("userID", userId))
-		return errors.New("文章发表失败，请稍后重试")
+		return fmt.Errorf("文章发表失败，请稍后重试")
 	}
 	return nil
 }
@@ -33,10 +34,10 @@ func (a *ArticleService) Update(req request.UpdateArticleRequest, userId uint) e
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("更新文章失败：文章不存在", zap.Uint("articleID", req.ID))
-			return errors.New("文章不存在")
+			return fmt.Errorf("文章不存在")
 		}
 		global.Log.Error("查询文章失败", zap.Error(err), zap.Uint("articleID", req.ID))
-		return errors.New("查询文章失败，请稍后重试")
+		return fmt.Errorf("查询文章失败，请稍后重试")
 	}
 
 	if err := commons.CheckOwnership(article, userId); err != nil {
@@ -54,10 +55,10 @@ func (a *ArticleService) Update(req request.UpdateArticleRequest, userId uint) e
 	result := global.DB.Model(&article).Updates(updates)
 	if result.Error != nil {
 		global.Log.Error("更新文章失败", zap.Error(result.Error), zap.Uint("articleID", req.ID))
-		return errors.New("文章更新失败，请稍后重试")
+		return fmt.Errorf("文章更新失败，请稍后重试")
 	}
 	if result.RowsAffected == 0 {
-		return errors.New("文章更新失败，可能没有变化")
+		return fmt.Errorf("文章更新失败，可能没有变化")
 	}
 	return nil
 }
@@ -68,10 +69,10 @@ func (a *ArticleService) Delete(id uint, userId uint) error {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("删除文章失败：文章不存在", zap.Uint("articleID", id))
-			return errors.New("文章不存在")
+			return fmt.Errorf("文章不存在")
 		}
 		global.Log.Error("查询文章失败", zap.Error(err), zap.Uint("articleID", id))
-		return errors.New("查询文章失败，请稍后重试")
+		return fmt.Errorf("查询文章失败，请稍后重试")
 	}
 
 	if err := commons.CheckOwnership(article, userId); err != nil {
@@ -82,11 +83,11 @@ func (a *ArticleService) Delete(id uint, userId uint) error {
 	result := global.DB.Delete(&article)
 	if result.Error != nil {
 		global.Log.Error("删除文章失败", zap.Error(result.Error), zap.Uint("articleID", id))
-		return errors.New("文章删除失败，请稍后重试")
+		return fmt.Errorf("文章删除失败，请稍后重试")
 	}
 	if result.RowsAffected == 0 {
 		global.Log.Warn("删除文章失败：文章不存在", zap.Uint("articleID", id))
-		return errors.New("文章不存在")
+		return fmt.Errorf("文章不存在")
 	}
 	global.Log.Info("删除文章成功", zap.Uint("articleID", id))
 	return nil
@@ -97,10 +98,10 @@ func (a *ArticleService) GetInfo(id uint) (basic.Article, error) {
 	err := global.DB.Where("id = ?", id).First(&article).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return basic.Article{}, errors.New("文章不存在")
+			return basic.Article{}, fmt.Errorf("文章不存在")
 		}
 		global.Log.Error("查询文章详情失败", zap.Error(err), zap.Uint("articleID", id))
-		return basic.Article{}, errors.New("查询文章失败，请稍后重试")
+		return basic.Article{}, fmt.Errorf("查询文章失败，请稍后重试")
 	}
 	return article, nil
 }
@@ -111,7 +112,7 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]bas
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		global.Log.Error("统计用户文章总数失败", zap.Error(err), zap.Uint("userID", userId))
-		return nil, 0, errors.New("查询用户文章列表失败，请稍后重试")
+		return nil, 0, fmt.Errorf("查询用户文章列表失败，请稍后重试")
 	}
 
 	var articles []basic.Article
@@ -120,7 +121,7 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]bas
 		Limit(pageReq.PageSize).
 		Find(&articles).Error; err != nil {
 		global.Log.Error("查询用户文章列表失败", zap.Error(err), zap.Uint("userID", userId))
-		return nil, 0, errors.New("查询用户文章列表失败，请稍后重试")
+		return nil, 0, fmt.Errorf("查询用户文章列表失败，请稍后重试")
 	}
 
 	return articles, total, nil
@@ -143,7 +144,7 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article,
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		global.Log.Error("统计文章总数失败", zap.Error(err))
-		return nil, 0, errors.New("查询文章列表失败，请稍后重试")
+		return nil, 0, fmt.Errorf("查询文章列表失败，请稍后重试")
 	}
 
 	var articles []basic.Article
@@ -152,7 +153,7 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article,
 		Limit(req.PageSize).
 		Find(&articles).Error; err != nil {
 		global.Log.Error("查询文章列表失败", zap.Error(err))
-		return nil, 0, errors.New("查询文章列表失败，请稍后重试")
+		return nil, 0, fmt.Errorf("查询文章列表失败，请稍后重试")
 	}
 
 	return articles, total, nil

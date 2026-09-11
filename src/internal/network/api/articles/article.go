@@ -1,11 +1,13 @@
 package articles
 
 import (
+	"bokee/global"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/articles"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 )
@@ -17,7 +19,8 @@ var articleService = &articles.ArticleService{}
 func (a *ArticleApi) Create(c *gin.Context) {
 	var req request.CreateArticleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("文章创建请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
@@ -32,7 +35,8 @@ func (a *ArticleApi) Create(c *gin.Context) {
 func (a *ArticleApi) Update(c *gin.Context) {
 	var req request.UpdateArticleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("文章更新请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
@@ -53,6 +57,7 @@ func (a *ArticleApi) Delete(c *gin.Context) {
 
 	id, err := strconv.ParseUint(idStr, 10, 32) // 转为 uint32 或 uint
 	if err != nil {
+		global.Log.Warn("文章ID格式错误", zap.String("id", idStr))
 		response.FailWithMessage("文章ID格式错误", c)
 		return
 	}
@@ -76,6 +81,7 @@ func (a *ArticleApi) GetInfo(c *gin.Context) {
 
 	id, err := strconv.ParseUint(idStr, 10, 32) // 转为 uint32 或 uint
 	if err != nil {
+		global.Log.Warn("文章ID格式错误", zap.String("id", idStr))
 		response.FailWithMessage("文章ID格式错误", c)
 		return
 	}
@@ -92,7 +98,8 @@ func (a *ArticleApi) GetInfo(c *gin.Context) {
 func (a *ArticleApi) ListByUser(c *gin.Context) {
 	var req request.UserArticleListReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("用户文章列表请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	req.Normalize()
@@ -108,7 +115,8 @@ func (a *ArticleApi) ListByUser(c *gin.Context) {
 func (a *ArticleApi) List(c *gin.Context) {
 	var req request.ArticleQueryListReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(http.StatusBadRequest, "请求参数异常>"+err.Error(), c)
+		global.Log.Warn("文章列表请求参数异常", zap.Error(err))
+		response.Fail(http.StatusBadRequest, "请求参数异常", c)
 		return
 	}
 	articleList, total, err := articleService.List(req)

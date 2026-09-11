@@ -1,7 +1,7 @@
 package filedx
 
 import (
-	"errors"
+	"fmt"
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/types"
 	"io"
@@ -23,7 +23,7 @@ var AllowedTypes = map[string]struct{}{
 func GetFileMIME(r io.Reader) (types.Type, error) {
 	match, err := filetype.MatchReader(r)
 	if match == filetype.Unknown || err != nil {
-		return types.Type{}, errors.New("未知的文件类型")
+		return types.Type{}, fmt.Errorf("未知的文件类型")
 	}
 	return match, nil
 }

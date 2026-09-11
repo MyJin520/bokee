@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type FileApi struct{}
@@ -17,7 +18,7 @@ var fileService = &files.FileService{}
 func (f *FileApi) Uploads(ctx *gin.Context) {
 	form, err := ctx.MultipartForm()
 	if err != nil {
-		global.Log.Error("表单解析失败：" + err.Error())
+		global.Log.Warn("表单解析失败", zap.Error(err))
 		response.Fail(http.StatusBadRequest, "表单解析失败", ctx)
 		return
 	}
@@ -31,7 +32,7 @@ func (f *FileApi) Uploads(ctx *gin.Context) {
 	for _, fileHeader := range fileHeaders {
 		fileRecord, err := fileService.Uploads(fileHeader)
 		if err != nil {
-			global.Log.Error("文件上传失败：" + err.Error())
+			global.Log.Error("文件上传失败", zap.Error(err))
 			response.FailWithMessage("文件上传失败", ctx)
 			return
 		}
