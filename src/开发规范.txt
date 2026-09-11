@@ -4,3 +4,7 @@
 4、请求体错误响应统一使用FailWithRequest包装
 5、业务错误响应统一使用FailWithMessage包装
 6、json请求体需进行src/pkg/verifyx/tag_verify.go校验，错误响应同样使用FailWithRequest包装
+7、权限操作规则：
+      用户<-->角色
+      角色<-->路由权限
+
