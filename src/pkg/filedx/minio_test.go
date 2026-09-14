@@ -50,6 +50,7 @@ func TestMinio(t *testing.T) {
 
 	// 方法一，直接传入本地文件
 	//uploadInfo, err := minioClient.FPutObject(ctx, bucketName, objectName, filePath, minio.PutObjectOptions{})
+
 	// 方法二，通过文件字节的形式
 	fileReader, err := os.Open(filePath)
 	defer func(fileReader *os.File) {
