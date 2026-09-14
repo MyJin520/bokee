@@ -12,19 +12,13 @@ import (
 	"bokee/global"
 
 	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
-	KeyPrefix     = "bokee"          // Key统一前缀
-	EmptyCacheTTL = 30 * time.Second // 空数据缓存时间（防穿透）
-	ErrPrefix     = "redis: "        // 错误统一前缀
-	emptyMarker   = "__EMPTY__"      // 空值缓存标记（防止缓存穿透）
+	KeyPrefix   = "bokee"     // Key统一前缀
+	ErrPrefix   = "redis: "   // 错误统一前缀
+	emptyMarker = "__EMPTY__" // 空值缓存标记（防止缓存穿透）
 )
-
-// 用于防止缓存击穿的 singleflight Group
-var sfGroup singleflight.Group
 
 // getClient 安全获取Redis客户端
 func getClient() *redis.Client {
@@ -144,81 +138,6 @@ func SetJSON(ctx context.Context, key string, value interface{}, expiration time
 	}
 	if err := getClient().Set(ctx, key, data, expiration).Err(); err != nil {
 		return fmt.Errorf(ErrPrefix+"SetJSON failed: %w", err)
-	}
-	return nil
-}
-
-// Remember 实现带防穿透与防击穿保护的缓存读写机制
-//
-// 机制说明：
-// 1. 优先读取缓存：若命中正常数据则反序列化到 dest；若命中空值标记则直接返回 nil
-// 2. 防击穿（Singleflight）：缓存未命中时，合并并发请求，保证同一时间只有一个请求调用 fallback 函数查询数据库
-// 3. 防穿透：当 fallback 返回 nil（数据库无数据）时，自动向 Redis 写入空值标记并设置短期 TTL
-// 4. 数据回填：查询到有效数据时自动写入 Redis，并将结果直接赋值给调用方的 dest 指针
-func Remember(ctx context.Context, key string, expiration time.Duration, fallback func() (interface{}, error), dest interface{}) error {
-	// 1. 先尝试读取缓存
-	val, err := getClient().Get(ctx, key).Result()
-	if err == nil {
-		if val == emptyMarker {
-			// 命中空值缓存
-			return nil
-		}
-		// 正常命中，反序列化到 dest
-		if err := json.Unmarshal([]byte(val), dest); err != nil {
-			return fmt.Errorf(ErrPrefix+"Unmarshal failed: %w", err)
-		}
-		return nil
-	}
-	if !errors.Is(err, redis.Nil) {
-		return fmt.Errorf(ErrPrefix+"Get failed: %w", err)
-	}
-
-	// 2. 缓存未命中，使用 singleflight 合并并发请求，防止击穿
-	data, err, _ := sfGroup.Do(key, func() (interface{}, error) {
-		// 执行数据源查询
-		result, err := fallback()
-		if err != nil {
-			return nil, fmt.Errorf(ErrPrefix+"Remember fallback failed: %w", err)
-		}
-
-		if result == nil {
-			// 缓存空值标记，防止缓存穿透
-			ttl := minDuration(expiration, EmptyCacheTTL)
-			if setErr := getClient().Set(ctx, key, emptyMarker, ttl).Err(); setErr != nil {
-				global.Log.Error("缓存空值失败", zap.String("key", key), zap.Error(setErr))
-			}
-			return nil, nil
-		}
-
-		// 序列化并回填正常数据
-		b, err := json.Marshal(result)
-		if err != nil {
-			return nil, fmt.Errorf(ErrPrefix+"Marshal failed: %w", err)
-		}
-		if setErr := getClient().Set(ctx, key, b, expiration).Err(); setErr != nil {
-			// 写缓存失败只记录日志，不影响当前请求返回数据
-			global.Log.Error("回填缓存失败", zap.String("key", key), zap.Error(setErr))
-		}
-
-		return result, nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	// 3. 将结果赋值给调用方的 dest（每个等待的 goroutine 都会执行到这里）
-	if data == nil {
-		// 空值，直接返回
-		return nil
-	}
-
-	b, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf(ErrPrefix+"Marshal failed: %w", err)
-	}
-	if err := json.Unmarshal(b, dest); err != nil {
-		return fmt.Errorf(ErrPrefix+"Unmarshal failed: %w", err)
 	}
 	return nil
 }
