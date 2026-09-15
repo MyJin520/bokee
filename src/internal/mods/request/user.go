@@ -15,11 +15,6 @@ type UserLoginReq struct {
 	Password string `json:"password" label:"密码" validate:"required"`
 }
 
-// TokenParsingReq todo 测试接口后续删除
-type TokenParsingReq struct {
-	Token string `json:"token" label:"Token" validate:"required"`
-}
-
 // UserUpdateReq 更新用户
 type UserUpdateReq struct {
 	Username string `json:"username" label:"用户名"`

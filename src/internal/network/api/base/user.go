@@ -56,28 +56,6 @@ func (u *UserApi) Login(c *gin.Context) {
 	response.OkWithDetailed(jwtResponse, "登录成功", c)
 }
 
-// ParseToken TODO 测试解析Token
-func (u *UserApi) ParseToken(c *gin.Context) {
-	var req request.TokenParsingReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Log.Error("Token 解析请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
-		return
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Warn("Token 解析参数校验失败", zap.String("err", errMsg))
-		response.FailWithRequest(errMsg, c)
-		return
-	}
-	claims, err := jwtx.ParseToken(req.Token)
-	if err != nil {
-		global.Log.Error("解析 Token 失败", zap.Error(err))
-		response.FailWithMessage("无效的认证令牌", c)
-		return
-	}
-	response.OkWithDetailed(claims, "解析成功", c)
-}
-
 func (u *UserApi) Update(c *gin.Context) {
 	var req request.UserUpdateReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -90,8 +68,8 @@ func (u *UserApi) Update(c *gin.Context) {
 		response.FailWithRequest(errMsg, c)
 		return
 	}
-	userID, _ := middleware.GetUserIDFromContext(c)
-	if err := userService.Update(req, userID); err != nil {
+	currentUserID, _ := middleware.GetUserIDFromContext(c)
+	if err := userService.Update(c.Request.Context(), req, currentUserID); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -127,8 +105,8 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 		response.FailWithRequest(errMsg, c)
 		return
 	}
-	cruId, _ := middleware.GetUserIDFromContext(c)
-	if err := userService.ForgetPassword(c.Request.Context(), req, cruId); err != nil {
+	currentUserID, _ := middleware.GetUserIDFromContext(c)
+	if err := userService.ForgetPassword(c.Request.Context(), req, currentUserID); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -149,7 +127,7 @@ func (u *UserApi) BindRoles(c *gin.Context) {
 		return
 	}
 
-	if err := userService.BindRoles(req); err != nil {
+	if err := userService.BindRoles(c.Request.Context(), req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
