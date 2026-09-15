@@ -6,10 +6,22 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+func ExtractBearerToken(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", fmt.Errorf("未提供认证令牌")
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+		return "", fmt.Errorf("认证令牌格式错误")
+	}
+	return parts[1], nil
+}
 
 // CustomClaims 自定义 Claims，可根据业务扩展
 type CustomClaims struct {
