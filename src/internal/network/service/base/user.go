@@ -35,7 +35,14 @@ const (
 	resetFailMax = 5
 	// resetLockDuration 重置密码失败后的锁定时间
 	resetLockDuration = 30 * time.Minute
+	// infoCacheTTL 用户信息缓存时长：读多写少，写操作后主动失效保证一致
+	infoCacheTTL = 30 * time.Minute
 )
+
+// userInfoKey 用户信息缓存 Key：bokee:user:info:<id>
+func userInfoKey(id uint) string {
+	return redisx.BuildKey("user", "info", fmt.Sprintf("%d", id))
+}
 
 // userLoginFailKey 登录失败计数 Key：bokee:user:login:fail:<username>
 func userLoginFailKey(username string) string {
@@ -60,6 +67,17 @@ func userResetFailKey(uid uint) string {
 // userResetLockKey 重置密码锁定标记 Key：bokee:user:reset:lock:<uid>
 func userResetLockKey(uid uint) string {
 	return redisx.BuildKey("user", "reset", "lock", fmt.Sprintf("%d", uid))
+}
+
+// deleteUserInfoCache 写操作落库成功后失效用户信息缓存（先写库、后删缓存，保证最终一致）
+func deleteUserInfoCache(ids ...uint) {
+	keys := make([]string, 0, len(ids))
+	for _, id := range ids {
+		keys = append(keys, userInfoKey(id))
+	}
+	if err := redisx.Delete(context.Background(), keys...); err != nil {
+		global.Log.Error("删除用户信息缓存失败", zap.Strings("keys", keys), zap.Error(err))
+	}
 }
 
 // buildUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
@@ -288,6 +306,9 @@ func (s *UserService) Update(req request.UserUpdateReq, uid uint) error {
 		global.Log.Warn("更新用户失败：用户不存在或未做任何更改", zap.Uint("userID", uid))
 		return fmt.Errorf("用户不存在或未做任何更改")
 	}
+
+	// 落库成功后失效缓存
+	deleteUserInfoCache(uid)
 	return nil
 }
 
@@ -336,6 +357,8 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 		return fmt.Errorf("尝试次数过多，请%d分钟后再试", minutes)
 	}
 
+	// 目标用户 ID（事务内确定，成功后用于失效缓存）
+	var targetUserID uint
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
 		// 查询当前操作用户并判断是否为管理员
 		var currentUser basic.User
@@ -358,7 +381,6 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 		}
 
 		// 确定目标用户 ID
-		var targetUserID uint
 		if isAdmin {
 			if req.SpecifyUserID != 0 {
 				targetUserID = req.SpecifyUserID
@@ -418,14 +440,15 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 		return err
 	}
 
-	// 重置成功后清除失败计数与锁定标记
+	// 重置成功后清除失败计数与锁定标记，并失效目标用户信息缓存
 	clearResetFail(ctx, cruId)
+	deleteUserInfoCache(targetUserID)
 	return nil
 }
 
 // BindRoles 为用户绑定角色（追加式：在已有角色基础上追加指定角色，不影响已绑定的角色）
 func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
-	return global.DB.Transaction(func(tx *gorm.DB) error {
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. 查询用户是否存在
 		var user basic.User
 		err := tx.Where("id = ?", req.UserID).First(&user).Error
@@ -493,6 +516,13 @@ func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 		)
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// 角色变更成功：失效该用户的信息缓存（缓存含角色信息）
+	deleteUserInfoCache(req.UserID)
+	return nil
 }
 
 // List 分页获取用户列表（返回脱敏结构，剔除密码等敏感字段）
@@ -533,8 +563,18 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 	return users, total, nil
 }
 
-// GetInfo 获取用户信息（返回脱敏结构，剔除密码等敏感字段）
-func (s *UserService) GetInfo(id uint) (response.UserInfoResp, error) {
+// GetInfo 获取用户信息
+func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoResp, error) {
+	// 1. 读缓存
+	key := userInfoKey(id)
+	var cached response.UserInfoResp
+	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
+		global.Log.Error("读取用户信息缓存失败，降级查库", zap.Error(err), zap.Uint("userID", id))
+	} else if cached.ID != 0 {
+		return cached, nil
+	}
+
+	// 2. 未命中：查库
 	var user basic.User
 	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
 	if err != nil {
@@ -545,5 +585,11 @@ func (s *UserService) GetInfo(id uint) (response.UserInfoResp, error) {
 		global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", id))
 		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
-	return buildUserInfoResp(user), nil
+	resp := buildUserInfoResp(user)
+
+	// 3. 回填缓存（失败只记日志，不影响返回）
+	if err := redisx.SetJSON(ctx, key, resp, infoCacheTTL); err != nil {
+		global.Log.Error("回填用户信息缓存失败", zap.Error(err), zap.Uint("userID", id))
+	}
+	return resp, nil
 }

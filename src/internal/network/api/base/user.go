@@ -181,7 +181,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 		}
 	}
 
-	user, err := userService.GetInfo(userID)
+	user, err := userService.GetInfo(c.Request.Context(), userID)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
