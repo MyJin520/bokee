@@ -1,6 +1,11 @@
 package base
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
 	"bokee/global"
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
@@ -8,16 +13,87 @@ import (
 	"bokee/pkg/cryptox/hash"
 	"bokee/pkg/jwtx"
 	"bokee/pkg/redisx"
-	"errors"
-	"fmt"
-	"github.com/gin-gonic/gin"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 )
 
 type UserService struct{}
+
+const (
+	// loginFailWindow 登录失败计数统计窗口：窗口内失败次数达到上限则锁定
+	loginFailWindow = 10 * time.Minute
+	// loginFailMax 窗口内允许的最大失败次数
+	loginFailMax = 5
+	// loginLockDuration 登录失败后的锁定时间
+	loginLockDuration = 30 * time.Minute
+)
+
+// userLoginFailKey 登录失败计数 Key：bokee:user:login:fail:<username>
+func userLoginFailKey(username string) string {
+	return redisx.BuildKey("user", "login", "fail", username)
+}
+
+// userLoginLockKey 登录锁定标记 Key：bokee:user:login:lock:<username>
+func userLoginLockKey(username string) string {
+	return redisx.BuildKey("user", "login", "lock", username)
+}
+
+// buildUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
+func buildUserInfoResp(user basic.User) response.UserInfoResp {
+	roles := make([]response.UserRoleResp, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roles = append(roles, response.UserRoleResp{
+			ID:       role.ID,
+			RoleName: role.RoleName,
+			RoleCode: role.RoleCode,
+		})
+	}
+	return response.UserInfoResp{
+		ID:        user.ID,
+		Name:      user.Name,
+		Phone:     user.Phone,
+		Email:     user.Email,
+		Status:    user.Status,
+		Avatar:    user.Avatar,
+		Roles:     roles,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+}
+
+// recordLoginFail 记录一次登录失败：计数 +1 并刷新统计窗口，达到阈值后写入锁定标记
+// Redis 异常放行：任何失败只记日志，不阻断登录主流程
+func recordLoginFail(ctx context.Context, username string) {
+	failKey := userLoginFailKey(username)
+
+	n, err := redisx.Incr(ctx, failKey)
+	if err != nil {
+		global.Log.Error("登录失败计数失败", zap.Error(err), zap.String("username", username))
+		return
+	}
+	if err := redisx.Expire(ctx, failKey, loginFailWindow); err != nil {
+		global.Log.Error("刷新登录失败统计窗口失败", zap.Error(err), zap.String("username", username))
+	}
+
+	if n >= loginFailMax {
+		if err := redisx.Set(ctx, userLoginLockKey(username), "1", loginLockDuration); err != nil {
+			global.Log.Error("写入登录锁定标记失败", zap.Error(err), zap.String("username", username))
+			return
+		}
+		// 锁定成功，重置失败计数
+		if err := redisx.Delete(ctx, failKey); err != nil {
+			global.Log.Error("重置登录失败计数失败", zap.Error(err), zap.String("username", username))
+		}
+	}
+}
+
+// clearLoginFail 登录成功后清除失败计数与锁定标记
+func clearLoginFail(ctx context.Context, username string) {
+	if err := redisx.Delete(ctx, userLoginFailKey(username), userLoginLockKey(username)); err != nil {
+		global.Log.Error("清除登录失败计数失败", zap.Error(err), zap.String("username", username))
+	}
+}
 
 func (s *UserService) Create(req request.UserCreateReq) error {
 	var count int64
@@ -49,7 +125,22 @@ func (s *UserService) Create(req request.UserCreateReq) error {
 	return nil
 }
 
-func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error) {
+// Login 用户登录：内置登录防爆破（失败计数 + 锁定），Redis 异常放行不影响正常登录
+func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*response.JwtResp, error) {
+	// 1. 检查是否已被锁定（Redis 异常放行，不阻断登录）
+	lockKey := userLoginLockKey(req.Username)
+	if locked, err := redisx.Exists(ctx, lockKey); err != nil {
+		global.Log.Error("查询登录锁定状态失败", zap.Error(err), zap.String("username", req.Username))
+	} else if locked {
+		ttl, err := redisx.TTL(ctx, lockKey)
+		if err != nil || ttl <= 0 {
+			ttl = loginLockDuration
+		}
+		minutes := int(ttl.Minutes()) + 1
+		global.Log.Warn("登录失败：账号已被锁定", zap.String("username", req.Username))
+		return nil, fmt.Errorf("尝试次数过多，请%d分钟后再试", minutes)
+	}
+
 	var user basic.User
 	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").Preload("Roles").
 		Where("name = ?", req.Username).
@@ -58,6 +149,7 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("登录失败：用户名不存在", zap.String("username", req.Username))
+			recordLoginFail(ctx, req.Username)
 			return nil, fmt.Errorf("用户名或密码错误")
 		}
 		global.Log.Error("登录数据库查询失败", zap.Error(err), zap.String("username", req.Username))
@@ -71,8 +163,12 @@ func (s *UserService) Login(req request.UserLoginReq) (*response.JwtResp, error)
 
 	if err := hash.CompareHashAndPassword(user.Password, req.Password); err != nil {
 		global.Log.Warn("密码校验失败", zap.String("username", req.Username))
+		recordLoginFail(ctx, req.Username)
 		return nil, fmt.Errorf("用户名或密码错误")
 	}
+
+	// 登录成功：清除失败计数与锁定标记
+	clearLoginFail(ctx, req.Username)
 
 	roleCodes := make([]uint, 0, len(user.Roles))
 	for _, role := range user.Roles {
@@ -130,22 +226,8 @@ func (s *UserService) Update(req request.UserUpdateReq, uid uint) error {
 	return nil
 }
 
-// Logout 用户登出：将当前 token 加入 Redis 黑名单
-func (s *UserService) Logout(c *gin.Context) error {
-	// 从请求头提取 token
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		global.Log.Warn("登出失败：未提供认证令牌")
-		return fmt.Errorf("未提供认证令牌")
-	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		global.Log.Warn("登出失败：认证令牌格式错误")
-		return fmt.Errorf("认证令牌格式错误")
-	}
-	tokenString := parts[1]
-
+// Logout 用户登出：将当前 token 加入 Redis 黑名单（token 由 API 层从请求头提取后传入，不依赖 gin）
+func (s *UserService) Logout(ctx context.Context, tokenString string) error {
 	// 解析 token 获取过期时间
 	claims, err := jwtx.ParseToken(tokenString)
 	if err != nil {
@@ -160,7 +242,7 @@ func (s *UserService) Logout(c *gin.Context) error {
 	}
 
 	// 写入 Redis 黑名单
-	if err := redisx.BlacklistToken(c, tokenString, remaining); err != nil {
+	if err := redisx.BlacklistToken(ctx, tokenString, remaining); err != nil {
 		global.Log.Error("登出写入 Redis 黑名单失败", zap.Error(err))
 		return fmt.Errorf("登出失败，请稍后重试")
 	}
@@ -325,7 +407,8 @@ func (s *UserService) BindRoles(req request.UserRoleBindReq) error {
 	})
 }
 
-func (s *UserService) List(req request.UserListReq) ([]basic.User, int64, error) {
+// List 分页获取用户列表（返回脱敏结构，剔除密码等敏感字段）
+func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, int64, error) {
 	query := global.DB.Model(&basic.User{})
 
 	if req.Name != "" {
@@ -348,26 +431,31 @@ func (s *UserService) List(req request.UserListReq) ([]basic.User, int64, error)
 		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
-	var users []basic.User
-	err = query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&users).Error
+	var modelUsers []basic.User
+	err = query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&modelUsers).Error
 	if err != nil {
 		global.Log.Error("查询用户列表失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
+	users := make([]response.UserInfoResp, 0, len(modelUsers))
+	for _, u := range modelUsers {
+		users = append(users, buildUserInfoResp(u))
+	}
 	return users, total, nil
 }
 
-func (s *UserService) GetInfo(id uint) (basic.User, error) {
+// GetInfo 获取用户信息（返回脱敏结构，剔除密码等敏感字段）
+func (s *UserService) GetInfo(id uint) (response.UserInfoResp, error) {
 	var user basic.User
 	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("获取用户信息失败：用户不存在", zap.Uint("userID", id))
-			return basic.User{}, fmt.Errorf("用户不存在")
+			return response.UserInfoResp{}, fmt.Errorf("用户不存在")
 		}
 		global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", id))
-		return basic.User{}, fmt.Errorf("查询用户失败，请稍后重试")
+		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
-	return user, nil
+	return buildUserInfoResp(user), nil
 }

@@ -48,7 +48,7 @@ func (u *UserApi) Login(c *gin.Context) {
 		response.FailWithRequest(errMsg, c)
 		return
 	}
-	jwtResponse, err := userService.Login(req)
+	jwtResponse, err := userService.Login(c.Request.Context(), req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -99,8 +99,15 @@ func (u *UserApi) Update(c *gin.Context) {
 }
 
 func (u *UserApi) Logout(c *gin.Context) {
-	err := userService.Logout(c)
+	// 从请求头提取 token（Bearer）
+	tokenString, err := jwtx.ExtractBearerToken(c.GetHeader("Authorization"))
 	if err != nil {
+		global.Log.Warn("登出失败：认证令牌无效", zap.String("err", err.Error()))
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+
+	if err := userService.Logout(c.Request.Context(), tokenString); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
