@@ -7,7 +7,6 @@ import (
 	"bokee/pkg/redisx"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,23 +14,13 @@ import (
 // AuthMiddleware JWT 认证中间件
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			global.Log.Warn("请求未携带 Authorization 头")
-			response.Fail(http.StatusUnauthorized, "未提供认证令牌", c)
+		tokenString, err := jwtx.ExtractBearerToken(c.GetHeader("Authorization"))
+		if err != nil {
+			global.Log.Warn("Authorization 头无效", zap.String("header", c.GetHeader("Authorization")), zap.Error(err))
+			response.Fail(http.StatusUnauthorized, err.Error(), c)
 			c.Abort()
 			return
 		}
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			global.Log.Warn("Authorization 头格式错误", zap.String("header", authHeader))
-			response.Fail(http.StatusUnauthorized, "认证令牌格式错误", c)
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 
 		// 解析并验证 token
 		claims, err := jwtx.ParseToken(tokenString)
@@ -43,7 +32,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查 Redis 黑名单（token 是否已登出）
-		blocked, err := redisx.IsTokenBlacklisted(c, tokenString)
+		blocked, err := redisx.IsTokenBlacklisted(c.Request.Context(), tokenString)
 		if err != nil {
 			global.Log.Error("Redis 黑名单查询失败", zap.String("jti", claims.ID), zap.Error(err))
 			// 查询失败放行，不阻断请求
