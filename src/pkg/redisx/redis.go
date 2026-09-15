@@ -77,6 +77,15 @@ func Set(ctx context.Context, key string, value interface{}, expiration time.Dur
 	return nil
 }
 
+// SetNX 仅当 Key 不存在时写入并设置过期时间，返回是否写入成功（用于限流 / 去重 / 简单分布式锁）
+func SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+	ok, err := getClient().SetNX(ctx, key, value, expiration).Result()
+	if err != nil {
+		return false, fmt.Errorf(ErrPrefix+"SetNX failed: %w", err)
+	}
+	return ok, nil
+}
+
 // Delete 从 Redis 中批量删除一个或多个 Key
 func Delete(ctx context.Context, keys ...string) error {
 	if err := getClient().Del(ctx, keys...).Err(); err != nil {

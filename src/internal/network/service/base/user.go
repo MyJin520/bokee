@@ -27,6 +27,14 @@ const (
 	loginFailMax = 5
 	// loginLockDuration 登录失败后的锁定时间
 	loginLockDuration = 30 * time.Minute
+	// registerLimitWindow 注册限流窗口：同一手机号窗口内仅允许尝试注册一次（防注册刷）
+	registerLimitWindow = 1 * time.Minute
+	// resetFailWindow 重置密码失败计数统计窗口
+	resetFailWindow = 10 * time.Minute
+	// resetFailMax 重置密码窗口内允许的最大失败次数
+	resetFailMax = 5
+	// resetLockDuration 重置密码失败后的锁定时间
+	resetLockDuration = 30 * time.Minute
 )
 
 // userLoginFailKey 登录失败计数 Key：bokee:user:login:fail:<username>
@@ -37,6 +45,21 @@ func userLoginFailKey(username string) string {
 // userLoginLockKey 登录锁定标记 Key：bokee:user:login:lock:<username>
 func userLoginLockKey(username string) string {
 	return redisx.BuildKey("user", "login", "lock", username)
+}
+
+// userRegisterKey 注册限流 Key：bokee:user:register:<phone>
+func userRegisterKey(phone string) string {
+	return redisx.BuildKey("user", "register", phone)
+}
+
+// userResetFailKey 重置密码失败计数 Key：bokee:user:reset:fail:<uid>
+func userResetFailKey(uid uint) string {
+	return redisx.BuildKey("user", "reset", "fail", fmt.Sprintf("%d", uid))
+}
+
+// userResetLockKey 重置密码锁定标记 Key：bokee:user:reset:lock:<uid>
+func userResetLockKey(uid uint) string {
+	return redisx.BuildKey("user", "reset", "lock", fmt.Sprintf("%d", uid))
 }
 
 // buildUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
@@ -95,7 +118,49 @@ func clearLoginFail(ctx context.Context, username string) {
 	}
 }
 
-func (s *UserService) Create(req request.UserCreateReq) error {
+// recordResetFail 记录一次重置密码失败：计数 +1 并刷新统计窗口，达到阈值后写入锁定标记
+// Redis 异常放行：任何失败只记日志，不阻断主流程
+func recordResetFail(ctx context.Context, uid uint) {
+	failKey := userResetFailKey(uid)
+
+	n, err := redisx.Incr(ctx, failKey)
+	if err != nil {
+		global.Log.Error("重置密码失败计数失败", zap.Error(err), zap.Uint("userID", uid))
+		return
+	}
+	if err := redisx.Expire(ctx, failKey, resetFailWindow); err != nil {
+		global.Log.Error("刷新重置密码失败统计窗口失败", zap.Error(err), zap.Uint("userID", uid))
+	}
+
+	if n >= resetFailMax {
+		if err := redisx.Set(ctx, userResetLockKey(uid), "1", resetLockDuration); err != nil {
+			global.Log.Error("写入重置密码锁定标记失败", zap.Error(err), zap.Uint("userID", uid))
+			return
+		}
+		// 锁定成功，重置失败计数
+		if err := redisx.Delete(ctx, failKey); err != nil {
+			global.Log.Error("重置重置密码失败计数失败", zap.Error(err), zap.Uint("userID", uid))
+		}
+	}
+}
+
+// clearResetFail 重置密码成功后清除失败计数与锁定标记
+func clearResetFail(ctx context.Context, uid uint) {
+	if err := redisx.Delete(ctx, userResetFailKey(uid), userResetLockKey(uid)); err != nil {
+		global.Log.Error("清除重置密码失败计数失败", zap.Error(err), zap.Uint("userID", uid))
+	}
+}
+
+// Create 用户注册：内置注册防刷（同一手机号窗口内仅允许尝试一次），Redis 异常放行不影响注册
+func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) error {
+	// 注册防刷：SetNX 成功才继续，失败说明窗口内已尝试过（Redis 异常放行）
+	if ok, err := redisx.SetNX(ctx, userRegisterKey(req.Phone), "1", registerLimitWindow); err != nil {
+		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("phone", req.Phone))
+	} else if !ok {
+		global.Log.Warn("注册过于频繁", zap.String("phone", req.Phone))
+		return fmt.Errorf("注册过于频繁，请稍后再试")
+	}
+
 	var count int64
 	global.DB.Model(&basic.User{}).Where("phone = ? OR email = ?", req.Phone, req.Email).Count(&count)
 	if count > 0 {
@@ -255,8 +320,23 @@ func (s *UserService) Logout(ctx context.Context, tokenString string) error {
 	return nil
 }
 
-func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) error {
-	return global.DB.Transaction(func(tx *gorm.DB) error {
+// ForgetPassword 重置密码：内置防爆破（非管理员旧密码错误计数 + 锁定），Redis 异常放行不影响主流程
+func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPasswordReq, cruId uint) error {
+	// 重置密码防爆破：先检查是否已被锁定（Redis 异常放行）
+	lockKey := userResetLockKey(cruId)
+	if locked, err := redisx.Exists(ctx, lockKey); err != nil {
+		global.Log.Error("查询重置密码锁定状态失败", zap.Error(err), zap.Uint("userID", cruId))
+	} else if locked {
+		ttl, err := redisx.TTL(ctx, lockKey)
+		if err != nil || ttl <= 0 {
+			ttl = resetLockDuration
+		}
+		minutes := int(ttl.Minutes()) + 1
+		global.Log.Warn("重置密码失败：操作已被锁定", zap.Uint("userID", cruId))
+		return fmt.Errorf("尝试次数过多，请%d分钟后再试", minutes)
+	}
+
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
 		// 查询当前操作用户并判断是否为管理员
 		var currentUser basic.User
 		err := tx.Where("id = ?", cruId).Preload("Roles").First(&currentUser).Error
@@ -297,6 +377,7 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 		if !isAdmin {
 			if err := hash.CompareHashAndPassword(currentUser.Password, req.OldPassword); err != nil {
 				global.Log.Warn("重置密码失败：旧密码错误", zap.Uint("userID", cruId))
+				recordResetFail(ctx, cruId)
 				return fmt.Errorf("旧密码错误，请输入正确的旧密码")
 			}
 		}
@@ -333,6 +414,13 @@ func (s *UserService) ForgetPassword(req request.ForgetPasswordReq, cruId uint) 
 			zap.Bool("isAdmin", isAdmin))
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// 重置成功后清除失败计数与锁定标记
+	clearResetFail(ctx, cruId)
+	return nil
 }
 
 // BindRoles 为用户绑定角色（追加式：在已有角色基础上追加指定角色，不影响已绑定的角色）

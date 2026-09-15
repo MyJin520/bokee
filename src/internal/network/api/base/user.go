@@ -29,7 +29,7 @@ func (u *UserApi) Create(c *gin.Context) {
 		response.FailWithRequest(errMsg, c)
 		return
 	}
-	if err := userService.Create(req); err != nil {
+	if err := userService.Create(c.Request.Context(), req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -128,7 +128,7 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 		return
 	}
 	cruId, _ := middleware.GetUserIDFromContext(c)
-	if err := userService.ForgetPassword(req, cruId); err != nil {
+	if err := userService.ForgetPassword(c.Request.Context(), req, cruId); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
