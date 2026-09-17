@@ -85,7 +85,7 @@ func (a *RoleApi) GetInfo(c *gin.Context) {
 		return
 	}
 
-	resp, err := roleService.GetInfo(uint(id))
+	resp, err := roleService.GetInfo(c.Request.Context(), uint(id))
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return

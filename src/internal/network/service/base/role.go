@@ -6,15 +6,22 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/pkg/casbinx"
+	"bokee/pkg/redisx"
+	"context"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type RoleService struct{}
+
+func roleInfoKey(id uint) string {
+	return redisx.BuildKey("role", "info", fmt.Sprintf("%d", id))
+}
 
 // Create 创建角色
 func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, error) {
@@ -164,19 +171,26 @@ func (s *RoleService) Delete(id uint) error {
 }
 
 // GetInfo 获取单个角色详情
-func (s *RoleService) GetInfo(id uint) (*response.RoleResp, error) {
+func (s *RoleService) GetInfo(ctx context.Context, id uint) (response.RoleResp, error) {
+	key := roleInfoKey(id)
+
+	var cached response.RoleResp
+	if err := redisx.GetJSON(ctx, key, &cached); err == nil && cached.ID != 0 {
+		return cached, nil
+	}
+
 	var role basic.Role
-	err := global.DB.Where("id = ?", id).First(&role).Error
-	if err != nil {
+	if err := global.DB.First(&role, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("获取角色详情失败：角色不存在", zap.Uint("roleID", id))
-			return nil, fmt.Errorf("角色不存在")
+			return response.RoleResp{}, fmt.Errorf("角色不存在")
 		}
+
 		global.Log.Error("查询角色失败", zap.Error(err))
-		return nil, fmt.Errorf("查询角色失败，请稍后重试")
+		return response.RoleResp{}, fmt.Errorf("查询角色失败，请稍后重试")
 	}
-	// todo 后续直接使用表结构体本身
-	return &response.RoleResp{
+
+	resp := response.RoleResp{
 		ID:        role.ID,
 		RoleName:  role.RoleName,
 		RoleCode:  role.RoleCode,
@@ -185,7 +199,13 @@ func (s *RoleService) GetInfo(id uint) (*response.RoleResp, error) {
 		Remark:    role.Remark,
 		CreatedAt: role.CreatedAt,
 		UpdatedAt: role.UpdatedAt,
-	}, nil
+	}
+
+	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
+		global.Log.Error("回填角色信息缓存失败", zap.Error(err), zap.Uint("roleID", id))
+	}
+
+	return resp, nil
 }
 
 // List 分页获取角色列表
