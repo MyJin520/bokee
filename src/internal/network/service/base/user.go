@@ -335,83 +335,61 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 	return nil
 }
 
-// BindRoles 为用户绑定角色（追加式：在已有角色基础上追加指定角色，不影响已绑定的角色），成功后失效用户信息缓存
-func (s *UserService) BindRoles(ctx context.Context, req request.UserRoleBindReq) error {
+func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBindReq) (string, error) {
+	var msg string
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. 查询用户是否存在
+		// 1. 查询用户
 		var user basic.User
-		err := tx.Where("id = ?", req.UserID).First(&user).Error
-		if err != nil {
+		if err := tx.First(&user, req.UserID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				global.Log.Warn("绑定角色失败：用户不存在", zap.Uint("userID", req.UserID))
 				return fmt.Errorf("用户不存在")
 			}
 			global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", req.UserID))
 			return fmt.Errorf("查询用户失败，请稍后重试")
 		}
 
-		// 2. 校验所有角色是否存在
-		if len(req.RoleIDs) == 0 {
-			global.Log.Warn("绑定角色失败：角色ID列表不能为空", zap.Uint("userID", req.UserID))
-			return fmt.Errorf("角色ID列表不能为空")
-		}
-
+		// 2. 查询角色
 		var roles []basic.Role
 		if err := tx.Where("id IN ?", req.RoleIDs).Find(&roles).Error; err != nil {
-			global.Log.Error("查询角色失败", zap.Error(err))
+			global.Log.Error("查询角色失败", zap.Error(err), zap.Any("roleIDs", req.RoleIDs))
 			return fmt.Errorf("查询角色失败，请稍后重试")
 		}
 
+		// 确保传入的角色全部存在
 		if len(roles) != len(req.RoleIDs) {
-			global.Log.Warn("绑定角色失败：部分角色不存在", zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
 			return fmt.Errorf("部分角色不存在，请检查角色ID")
 		}
 
-		// 3. 获取用户已绑定的角色，过滤出尚未绑定的角色进行追加
-		var currentRoles []basic.Role
-		if err := tx.Model(&user).Association("Roles").Find(&currentRoles); err != nil {
-			global.Log.Error("查询用户当前角色失败", zap.Error(err))
-			return fmt.Errorf("查询用户当前角色失败，请稍后重试")
-		}
+		// 3. 执行 many-to-many 操作
+		association := tx.Model(&user).Association("Roles")
 
-		currentRoleIDs := make(map[uint]bool)
-		for _, r := range currentRoles {
-			currentRoleIDs[r.ID] = true
-		}
-
-		var newRoles []basic.Role
-		for _, r := range roles {
-			if !currentRoleIDs[r.ID] {
-				newRoles = append(newRoles, r)
+		switch req.Operate {
+		case "bind":
+			if err := association.Append(&roles); err != nil {
+				global.Log.Error("角色绑定失败", zap.Error(err), zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
+				return fmt.Errorf("角色绑定失败，请稍后重试")
 			}
+			msg = "角色绑定操作成功"
+
+		case "unbind":
+			if err := association.Delete(&roles); err != nil {
+				global.Log.Error("角色解绑失败", zap.Error(err), zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
+				return fmt.Errorf("角色解绑失败，请稍后重试")
+			}
+			msg = "角色解绑操作成功"
 		}
 
-		if len(newRoles) == 0 {
-			global.Log.Warn("绑定角色失败：指定角色已绑定", zap.Uint("userID", req.UserID))
-			return fmt.Errorf("指定角色已绑定，无需重复绑定")
-		}
-
-		// 4. 追加新角色（GORM many2many 自动写入 sys_user_roles 表）
-		if err := tx.Model(&user).Association("Roles").Append(&newRoles); err != nil {
-			global.Log.Error("绑定用户角色失败", zap.Error(err),
-				zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
-			return fmt.Errorf("角色绑定失败，请稍后重试")
-		}
-
-		global.Log.Info("用户角色绑定成功",
-			zap.Uint("userID", req.UserID),
-			zap.Any("roleIDs", req.RoleIDs),
-			zap.Int("newRoleCount", len(newRoles)),
-		)
 		return nil
 	})
+
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	// 角色变更成功：失效该用户的信息缓存（缓存含角色信息）
+	// 角色发生操作后清除用户缓存
 	deleteUserInfoCache(ctx, req.UserID)
-	return nil
+
+	return msg, nil
 }
 
 // List 分页获取用户列表（返回脱敏结构，剔除密码等敏感字段）

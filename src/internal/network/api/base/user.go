@@ -113,8 +113,8 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 	response.OkWithMessage("密码重置成功", c)
 }
 
-// BindRoles 用户角色绑定
-func (u *UserApi) BindRoles(c *gin.Context) {
+// OperateRoles 用户角色绑定/解绑
+func (u *UserApi) OperateRoles(c *gin.Context) {
 	var req request.UserRoleBindReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		global.Log.Error("角色绑定请求参数异常", zap.Error(err))
@@ -127,11 +127,12 @@ func (u *UserApi) BindRoles(c *gin.Context) {
 		return
 	}
 
-	if err := userService.BindRoles(c.Request.Context(), req); err != nil {
+	msg, err := userService.OperateRoles(c.Request.Context(), req)
+	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
-	response.OkWithMessage("角色绑定成功", c)
+	response.OkWithMessage(msg, c)
 }
 
 func (u *UserApi) GetInfo(c *gin.Context) {

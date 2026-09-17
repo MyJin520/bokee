@@ -41,6 +41,7 @@ type UserListReq struct {
 
 // UserRoleBindReq 用户角色绑定请求（支持批量绑定多个角色）
 type UserRoleBindReq struct {
-	UserID  uint   `json:"userId" label:"用户ID" validate:"required"`          // 用户ID
-	RoleIDs []uint `json:"roleIds" label:"角色ID列表" validate:"required,min=1"` // 角色ID列表（传单个角色ID也使用数组格式）
+	UserID  uint   `json:"userId" label:"用户ID" validate:"required"`                    // 用户ID
+	RoleIDs []uint `json:"roleIds" label:"角色ID列表" validate:"required,min=1"`           // 角色ID列表（传单个角色ID也使用数组格式）
+	Operate string `json:"operate" label:"操作行为" validate:"required,oneof=bind unbind"` // 绑定或解绑 bind || unbind
 }
