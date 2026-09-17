@@ -51,7 +51,7 @@ func (a *RoleApi) Update(c *gin.Context) {
 		return
 	}
 
-	if err := roleService.Update(req); err != nil {
+	if err := roleService.Update(c.Request.Context(), req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

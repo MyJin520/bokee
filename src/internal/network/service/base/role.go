@@ -73,7 +73,7 @@ func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, err
 }
 
 // Update 更新角色
-func (s *RoleService) Update(req request.RoleUpdateReq) error {
+func (s *RoleService) Update(ctx context.Context, req request.RoleUpdateReq) error {
 	// 查询原角色
 	var role basic.Role
 	err := global.DB.Where("id = ?", req.ID).First(&role).Error
@@ -128,6 +128,10 @@ func (s *RoleService) Update(req request.RoleUpdateReq) error {
 	if result.RowsAffected == 0 {
 		global.Log.Warn("更新角色失败：角色不存在或未做任何更改", zap.Uint("roleID", req.ID))
 		return fmt.Errorf("角色不存在或未做任何更改")
+	}
+
+	if err := redisx.Delete(ctx, roleInfoKey(req.ID)); err != nil {
+		global.Log.Error("删除角色缓存失败", zap.Error(err), zap.Uint("roleID", req.ID))
 	}
 
 	return nil
