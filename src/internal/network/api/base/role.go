@@ -68,7 +68,7 @@ func (a *RoleApi) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := roleService.Delete(uint(id)); err != nil {
+	if err := roleService.Delete(c.Request.Context(), uint(id)); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

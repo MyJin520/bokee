@@ -134,7 +134,7 @@ func (s *RoleService) Update(req request.RoleUpdateReq) error {
 }
 
 // Delete 删除角色（软删除）
-func (s *RoleService) Delete(id uint) error {
+func (s *RoleService) Delete(ctx context.Context, id uint) error {
 	// 查询角色
 	var role basic.Role
 	err := global.DB.Where("id = ?", id).First(&role).Error
@@ -164,6 +164,10 @@ func (s *RoleService) Delete(id uint) error {
 	if err := global.DB.Delete(&role).Error; err != nil {
 		global.Log.Error("删除角色失败", zap.Error(err), zap.Uint("roleID", id))
 		return fmt.Errorf("删除角色失败，请稍后重试")
+	}
+
+	if err := redisx.Delete(ctx, roleInfoKey(id)); err != nil {
+		global.Log.Error("删除角色缓存失败", zap.Error(err), zap.Uint("roleID", id))
 	}
 
 	global.Log.Info("删除角色成功", zap.Uint("roleID", id), zap.String("roleName", role.RoleName))
