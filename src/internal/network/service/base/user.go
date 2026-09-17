@@ -21,13 +21,6 @@ import (
 
 type UserService struct{}
 
-const (
-	// registerLimitWindow 注册限流窗口：同一手机号窗口内仅允许尝试注册一次（防注册刷）
-	registerLimitWindow = 1 * time.Minute
-	// infoCacheTTL 用户信息缓存时长：读多写少，写操作后主动失效保证一致
-	infoCacheTTL = 30 * time.Minute
-)
-
 var (
 	// loginLimiter 登录防爆破：10min 窗口内 5 次失败锁定 30min
 	loginLimiter = &limitx.FailLimiter{Scope: "user:login", Window: 10 * time.Minute, Max: 5, Lock: 30 * time.Minute}
@@ -82,7 +75,7 @@ func buildUserInfoResp(user basic.User) response.UserInfoResp {
 // Create 用户注册：内置注册防刷（同一手机号窗口内仅允许尝试一次），Redis 异常放行不影响注册
 func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) error {
 	// 注册防刷：SetNX 成功才继续，失败说明窗口内已尝试过（Redis 异常放行）
-	if ok, err := redisx.SetNX(ctx, userRegisterKey(req.Phone), "1", registerLimitWindow); err != nil {
+	if ok, err := redisx.SetNX(ctx, userRegisterKey(req.Phone), "1", 1*time.Minute); err != nil {
 		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("phone", req.Phone))
 	} else if !ok {
 		global.Log.Warn("注册过于频繁", zap.String("phone", req.Phone))
@@ -461,8 +454,8 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 
 // GetInfo 获取用户信息
 func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoResp, error) {
-	// 1. 读缓存
 	key := userInfoKey(id)
+
 	var cached response.UserInfoResp
 	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
 		global.Log.Error("读取用户信息缓存失败，降级查库", zap.Error(err), zap.Uint("userID", id))
@@ -470,10 +463,8 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 		return cached, nil
 	}
 
-	// 2. 未命中：查库
 	var user basic.User
-	err := global.DB.Where("id = ?", id).Preload("Roles").First(&user).Error
-	if err != nil {
+	if err := global.DB.Preload("Roles").First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("获取用户信息失败：用户不存在", zap.Uint("userID", id))
 			return response.UserInfoResp{}, fmt.Errorf("用户不存在")
@@ -481,10 +472,9 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 		global.Log.Error("查询用户失败", zap.Error(err), zap.Uint("userID", id))
 		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
-	resp := buildUserInfoResp(user)
 
-	// 3. 回填缓存（失败只记日志，不影响返回）
-	if err := redisx.SetJSON(ctx, key, resp, infoCacheTTL); err != nil {
+	resp := buildUserInfoResp(user)
+	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填用户信息缓存失败", zap.Error(err), zap.Uint("userID", id))
 	}
 	return resp, nil
