@@ -2,25 +2,26 @@ package base
 
 import (
 	"bokee/internal/network/api/base"
+	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 )
 
 var userApi = base.UserApi{}
 
 func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup) {
-	userPublic := publicGroup.Group("/user")
+	userPublic := &routex.Group{RouterGroup: publicGroup.Group("/user")}
 	{
-		userPublic.POST("/create", userApi.Create) // 创建用户
-		userPublic.POST("/login", userApi.Login)   // 用户登录
+		userPublic.POST("/create", "创建用户", userApi.Create) // 创建用户
+		userPublic.POST("/login", "用户登录", userApi.Login)   // 用户登录
 	}
 
-	userPrivate := privateGroup.Group("/user")
+	userPrivate := &routex.Group{RouterGroup: privateGroup.Group("/user")}
 	{
-		userPrivate.PUT("/update", userApi.Update)                   // 更新用户信息
-		userPrivate.GET("/logout", userApi.Logout)                   // 用户登出
-		userPrivate.GET("/get_info", userApi.GetInfo)                // 获取用户信息
-		userPrivate.POST("/forget_password", userApi.ForgetPassword) // 忘记密码
-		userPrivate.POST("/operate_roles", userApi.OperateRoles)     // 用户角色绑定/解绑
-		userPrivate.POST("/list", userApi.List)                      // 用户列表
+		userPrivate.PUT("/update", "更新用户信息", userApi.Update)                  // 更新用户信息
+		userPrivate.GET("/logout", "用户登出", userApi.Logout)                    // 用户登出
+		userPrivate.GET("/get_info", "获取用户信息", userApi.GetInfo)               // 获取用户信息
+		userPrivate.POST("/forget_password", "忘记密码", userApi.ForgetPassword)  // 忘记密码
+		userPrivate.POST("/operate_roles", "用户角色绑定/解绑", userApi.OperateRoles) // 用户角色绑定/解绑
+		userPrivate.POST("/list", "用户列表", userApi.List)                       // 用户列表
 	}
 }

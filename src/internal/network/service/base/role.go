@@ -7,6 +7,7 @@ import (
 	"bokee/internal/mods/response"
 	"bokee/pkg/casbinx"
 	"bokee/pkg/redisx"
+	"bokee/pkg/routex"
 	"context"
 	"errors"
 	"fmt"
@@ -344,6 +345,7 @@ func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriRouteRe
 		routes = append(routes, response.PriRouteResp{
 			Path:   p[1],
 			Method: p[2],
+			Desc:   routex.Get(p[2], p[1]),
 		})
 	}
 

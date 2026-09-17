@@ -2,14 +2,15 @@ package files
 
 import (
 	"bokee/internal/network/api/files"
+	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 )
 
 var fileApi = files.FileApi{}
 
 func InitFileRouter(publicGroup *gin.RouterGroup) {
-	filePublic := publicGroup.Group("/file")
+	filePublic := &routex.Group{RouterGroup: publicGroup.Group("/file")}
 	{
-		filePublic.POST("/uploads", fileApi.Uploads)
+		filePublic.POST("/uploads", "文件上传", fileApi.Uploads) // 文件上传
 	}
 }
