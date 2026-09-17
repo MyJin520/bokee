@@ -9,7 +9,7 @@ import (
 var fileApi = files.FileApi{}
 
 func InitFileRouter(publicGroup *gin.RouterGroup) {
-	filePublic := &routex.Group{RouterGroup: publicGroup.Group("/file")}
+	filePublic := routex.NewGroup(publicGroup.Group("/file"))
 	{
 		filePublic.POST("/uploads", "文件上传", fileApi.Uploads) // 文件上传
 	}

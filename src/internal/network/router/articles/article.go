@@ -9,7 +9,7 @@ import (
 var articleApi = articles.ArticleApi{}
 
 func InitArticleRouter(privateGroup *gin.RouterGroup) {
-	articlePrivate := &routex.Group{RouterGroup: privateGroup.Group("/article")}
+	articlePrivate := routex.NewGroup(privateGroup.Group("/article"))
 	{
 		articlePrivate.POST("/create", "创建文章", articleApi.Create)                  // 创建文章
 		articlePrivate.PUT("/update", "更新文章", articleApi.Update)                   // 更新文章

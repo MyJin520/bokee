@@ -14,6 +14,11 @@ type Group struct {
 	*gin.RouterGroup
 }
 
+// NewGroup 包装 gin 路由组：注册路由的同时记录描述
+func NewGroup(rg *gin.RouterGroup) *Group {
+	return &Group{RouterGroup: rg}
+}
+
 var (
 	mu      sync.RWMutex
 	descMap = make(map[string]string)
