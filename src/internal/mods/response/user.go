@@ -30,9 +30,15 @@ type UserInfoResp struct {
 	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
+// PriRouteResp 私有路由项
 type PriRouteResp struct {
-	Module string `json:"module"` // 所属模块
 	Path   string `json:"path"`   // 路由路径
 	Method string `json:"method"` // 请求方法
 	Desc   string `json:"desc"`   // 路由描述
+}
+
+// PriModuleResp 模块分组私有路由
+type PriModuleResp struct {
+	Module string         `json:"module"` // 模块名
+	Routes []PriRouteResp `json:"routes"` // 该模块下的路由
 }

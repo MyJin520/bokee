@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -332,34 +333,63 @@ func (s *RoleService) Auth(req request.RoleAuthReq) error {
 	return nil
 }
 
-// GetAllPriRule 获取所有私有路由（原有功能，保留兼容）
-func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriRouteResp, int64, error) {
+// GetAllPriRule 获取所有私有路由（按模块聚合，组内路由按路径排序）
+func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriModuleResp, int64, error) {
 	policies, err := casbinx.GetPrivateRoutes()
 	if err != nil {
 		global.Log.Error("获取私有路由失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("获取私有路由列表失败，请稍后重试")
 	}
 
-	var routes []response.PriRouteResp
+	// 模块聚合：module -> 路由列表，同一 (method, path) 全局去重
+	moduleMap := make(map[string][]response.PriRouteResp)
+	moduleOrder := make([]string, 0)
+	seen := make(map[string]struct{})
+
 	for _, p := range policies {
+		if len(p) < 3 {
+			continue
+		}
+		routeKey := p[2] + "|" + p[1]
+		if _, ok := seen[routeKey]; ok {
+			continue
+		}
+		seen[routeKey] = struct{}{}
+
 		meta := routex.Get(p[2], p[1])
-		routes = append(routes, response.PriRouteResp{
-			Module: meta.Module,
+		module := meta.Module
+		if module == "" {
+			module = "未分类"
+		}
+		if _, ok := moduleMap[module]; !ok {
+			moduleOrder = append(moduleOrder, module)
+		}
+		moduleMap[module] = append(moduleMap[module], response.PriRouteResp{
 			Path:   p[1],
 			Method: p[2],
 			Desc:   meta.Desc,
 		})
 	}
 
-	total := int64(len(routes))
-	start := page.Offset()
-	if start > int(total) {
-		return []response.PriRouteResp{}, total, nil
-	}
-	end := start + page.PageSize
-	if end > int(total) {
-		end = int(total)
+	// 组装模块列表，组内路由按路径排序
+	list := make([]response.PriModuleResp, 0, len(moduleOrder))
+	for _, module := range moduleOrder {
+		routes := moduleMap[module]
+		sort.Slice(routes, func(i, j int) bool {
+			return routes[i].Path < routes[j].Path
+		})
+		list = append(list, response.PriModuleResp{Module: module, Routes: routes})
 	}
 
-	return routes[start:end], total, nil
+	total := int64(len(list))
+	start := page.Offset()
+	if start > len(list) {
+		return []response.PriModuleResp{}, total, nil
+	}
+	end := start + page.PageSize
+	if end > len(list) {
+		end = len(list)
+	}
+
+	return list[start:end], total, nil
 }
