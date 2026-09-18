@@ -8,12 +8,13 @@ import (
 	"bokee/pkg/casbinx"
 	"bokee/pkg/redisx"
 	"bokee/pkg/routex"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -341,55 +342,64 @@ func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriModuleR
 		return nil, 0, fmt.Errorf("获取私有路由列表失败，请稍后重试")
 	}
 
-	// 模块聚合：module -> 路由列表，同一 (method, path) 全局去重
-	moduleMap := make(map[string][]response.PriRouteResp)
-	moduleOrder := make([]string, 0)
+	list := groupPriRoutes(policies)
+	total := int64(len(list))
+
+	start := page.Offset()
+	if start >= len(list) {
+		return []response.PriModuleResp{}, total, nil
+	}
+
+	end := min(start+page.PageSize, len(list))
+	return list[start:end], total, nil
+}
+
+func groupPriRoutes(policies [][]string) []response.PriModuleResp {
+	modules := make(map[string][]response.PriRouteResp)
+	order := make([]string, 0)
 	seen := make(map[string]struct{})
 
 	for _, p := range policies {
 		if len(p) < 3 {
 			continue
 		}
-		routeKey := p[2] + "|" + p[1]
-		if _, ok := seen[routeKey]; ok {
+
+		key := p[2] + "|" + p[1]
+		if _, exists := seen[key]; exists {
 			continue
 		}
-		seen[routeKey] = struct{}{}
+		seen[key] = struct{}{}
 
 		meta := routex.Get(p[2], p[1])
 		module := meta.Module
 		if module == "" {
 			module = "未分类"
 		}
-		if _, ok := moduleMap[module]; !ok {
-			moduleOrder = append(moduleOrder, module)
+
+		if _, exists := modules[module]; !exists {
+			order = append(order, module)
 		}
-		moduleMap[module] = append(moduleMap[module], response.PriRouteResp{
+
+		modules[module] = append(modules[module], response.PriRouteResp{
 			Path:   p[1],
 			Method: p[2],
 			Desc:   meta.Desc,
 		})
 	}
 
-	// 组装模块列表，组内路由按路径排序
-	list := make([]response.PriModuleResp, 0, len(moduleOrder))
-	for _, module := range moduleOrder {
-		routes := moduleMap[module]
-		sort.Slice(routes, func(i, j int) bool {
-			return routes[i].Path < routes[j].Path
+	list := make([]response.PriModuleResp, 0, len(order))
+	for _, module := range order {
+		routes := modules[module]
+
+		slices.SortFunc(routes, func(a, b response.PriRouteResp) int {
+			return cmp.Compare(a.Path, b.Path)
 		})
-		list = append(list, response.PriModuleResp{Module: module, Routes: routes})
+
+		list = append(list, response.PriModuleResp{
+			Module: module,
+			Routes: routes,
+		})
 	}
 
-	total := int64(len(list))
-	start := page.Offset()
-	if start > len(list) {
-		return []response.PriModuleResp{}, total, nil
-	}
-	end := start + page.PageSize
-	if end > len(list) {
-		end = len(list)
-	}
-
-	return list[start:end], total, nil
+	return list
 }
