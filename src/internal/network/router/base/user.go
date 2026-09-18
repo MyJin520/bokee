@@ -9,13 +9,13 @@ import (
 var userApi = base.UserApi{}
 
 func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup) {
-	userPublic := routex.NewGroup(publicGroup.Group("/user"))
+	userPublic := routex.NewGroup("用户模块", publicGroup.Group("/user"))
 	{
 		userPublic.POST("/create", "创建用户", userApi.Create) // 创建用户
 		userPublic.POST("/login", "用户登录", userApi.Login)   // 用户登录
 	}
 
-	userPrivate := routex.NewGroup(privateGroup.Group("/user"))
+	userPrivate := routex.NewGroup("用户模块", privateGroup.Group("/user"))
 	{
 		userPrivate.PUT("/update", "更新用户信息", userApi.Update)                  // 更新用户信息
 		userPrivate.GET("/logout", "用户登出", userApi.Logout)                    // 用户登出

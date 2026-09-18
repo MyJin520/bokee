@@ -9,7 +9,7 @@ import (
 var roleApi = base.RoleApi{}
 
 func InitRoleRouter(privateGroup *gin.RouterGroup) {
-	rolePrivate := routex.NewGroup(privateGroup.Group("/role"))
+	rolePrivate := routex.NewGroup("角色模块", privateGroup.Group("/role"))
 	{
 		rolePrivate.POST("/create", "创建角色", roleApi.Create)                      // 创建角色
 		rolePrivate.PUT("/update", "更新角色", roleApi.Update)                       // 更新角色

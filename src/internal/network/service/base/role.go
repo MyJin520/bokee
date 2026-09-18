@@ -342,10 +342,12 @@ func (s *RoleService) GetAllPriRule(page request.PageReq) ([]response.PriRouteRe
 
 	var routes []response.PriRouteResp
 	for _, p := range policies {
+		meta := routex.Get(p[2], p[1])
 		routes = append(routes, response.PriRouteResp{
+			Module: meta.Module,
 			Path:   p[1],
 			Method: p[2],
-			Desc:   routex.Get(p[2], p[1]),
+			Desc:   meta.Desc,
 		})
 	}
 

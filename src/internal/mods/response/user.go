@@ -31,6 +31,7 @@ type UserInfoResp struct {
 }
 
 type PriRouteResp struct {
+	Module string `json:"module"` // 所属模块
 	Path   string `json:"path"`   // 路由路径
 	Method string `json:"method"` // 请求方法
 	Desc   string `json:"desc"`   // 路由描述
