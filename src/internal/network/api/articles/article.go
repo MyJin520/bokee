@@ -50,7 +50,7 @@ func (a *ArticleApi) Update(c *gin.Context) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
-	err := articleService.Update(req, userId)
+	err := articleService.Update(c.Request.Context(), req, userId)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
@@ -74,7 +74,7 @@ func (a *ArticleApi) Delete(c *gin.Context) {
 
 	articleID := uint(id)
 	userId, _ := middleware.GetUserIDFromContext(c)
-	if err := articleService.Delete(articleID, userId); err != nil {
+	if err := articleService.Delete(c.Request.Context(), articleID, userId); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -96,7 +96,7 @@ func (a *ArticleApi) GetInfo(c *gin.Context) {
 		return
 	}
 	articleID := uint(id)
-	article, err := articleService.GetInfo(articleID)
+	article, err := articleService.GetInfo(c.Request.Context(), articleID)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return

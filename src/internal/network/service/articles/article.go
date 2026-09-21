@@ -1,18 +1,38 @@
 package articles
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"bokee/global"
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/pkg/commons"
+	"bokee/pkg/redisx"
 	"errors"
-	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
 type ArticleService struct{}
+
+// articleInfoKey 文章详情缓存 Key：bokee:article:info:<id>
+func articleInfoKey(id uint) string {
+	return redisx.BuildKey("article", "info", fmt.Sprintf("%d", id))
+}
+
+// deleteArticleInfoCache 写操作落库成功后失效文章详情缓存（先写库、后删缓存，保证最终一致）
+func deleteArticleInfoCache(ctx context.Context, ids ...uint) {
+	keys := make([]string, 0, len(ids))
+	for _, id := range ids {
+		keys = append(keys, articleInfoKey(id))
+	}
+	if err := redisx.Delete(ctx, keys...); err != nil {
+		global.Log.Error("删除文章详情缓存失败", zap.Strings("keys", keys), zap.Error(err))
+	}
+}
 
 func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
 	newArticle := basic.Article{
@@ -29,7 +49,7 @@ func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) e
 	return nil
 }
 
-func (a *ArticleService) Update(req request.UpdateArticleRequest, userId uint) error {
+func (a *ArticleService) Update(ctx context.Context, req request.UpdateArticleRequest, userId uint) error {
 	var article basic.Article
 	err := global.DB.Where("id = ?", req.ID).First(&article).Error
 	if err != nil {
@@ -61,10 +81,13 @@ func (a *ArticleService) Update(req request.UpdateArticleRequest, userId uint) e
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("文章更新失败，可能没有变化")
 	}
+
+	// 落库成功后失效缓存
+	deleteArticleInfoCache(ctx, article.ID)
 	return nil
 }
 
-func (a *ArticleService) Delete(id uint, userId uint) error {
+func (a *ArticleService) Delete(ctx context.Context, id uint, userId uint) error {
 	var article basic.Article
 	err := global.DB.Where("id = ?", id).First(&article).Error
 	if err != nil {
@@ -91,6 +114,8 @@ func (a *ArticleService) Delete(id uint, userId uint) error {
 		return fmt.Errorf("文章不存在")
 	}
 	global.Log.Info("删除文章成功", zap.Uint("articleID", id))
+	// 落库成功后失效缓存
+	deleteArticleInfoCache(ctx, article.ID)
 	return nil
 }
 
@@ -126,7 +151,17 @@ func buildArticleListItemResp(article basic.Article) response.ArticleListItemRes
 	}
 }
 
-func (a *ArticleService) GetInfo(id uint) (response.ArticleInfoResp, error) {
+func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.ArticleInfoResp, error) {
+	// 先查缓存
+	key := articleInfoKey(id)
+	var cached response.ArticleInfoResp
+	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
+		global.Log.Error("读取文章详情缓存失败，降级查库", zap.Error(err), zap.Uint("articleID", id))
+	} else if cached.ID != 0 {
+		return cached, nil
+	}
+
+	// 缓存 miss，查库
 	var article basic.Article
 	err := global.DB.Where("id = ?", id).First(&article).Error
 	if err != nil {
@@ -136,7 +171,13 @@ func (a *ArticleService) GetInfo(id uint) (response.ArticleInfoResp, error) {
 		global.Log.Error("查询文章详情失败", zap.Error(err), zap.Uint("articleID", id))
 		return response.ArticleInfoResp{}, fmt.Errorf("查询文章失败，请稍后重试")
 	}
-	return buildArticleInfoResp(article), nil
+
+	// 查库成功后回填缓存
+	resp := buildArticleInfoResp(article)
+	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
+		global.Log.Error("回填文章详情缓存失败", zap.Error(err), zap.Uint("articleID", id))
+	}
+	return resp, nil
 }
 
 func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]response.ArticleListItemResp, int64, error) {
