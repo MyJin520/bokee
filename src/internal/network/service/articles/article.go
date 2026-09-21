@@ -4,6 +4,7 @@ import (
 	"bokee/global"
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
+	"bokee/internal/mods/response"
 	"bokee/pkg/commons"
 	"errors"
 	"fmt"
@@ -93,20 +94,52 @@ func (a *ArticleService) Delete(id uint, userId uint) error {
 	return nil
 }
 
-func (a *ArticleService) GetInfo(id uint) (basic.Article, error) {
+// buildArticleInfoResp 将文章模型转换为详情响应结构体
+func buildArticleInfoResp(article basic.Article) response.ArticleInfoResp {
+	return response.ArticleInfoResp{
+		ID:        article.ID,
+		Title:     article.Title,
+		Content:   article.Content,
+		Summary:   article.Summary,
+		Cover:     article.Cover,
+		ViewCount: article.ViewCount,
+		LikeCount: article.LikeCount,
+		IsTop:     article.IsTop,
+		UserID:    article.UserID,
+		CreatedAt: article.CreatedAt,
+		UpdatedAt: article.UpdatedAt,
+	}
+}
+
+// buildArticleListItemResp 将文章模型转换为列表响应结构体（不含正文内容）
+func buildArticleListItemResp(article basic.Article) response.ArticleListItemResp {
+	return response.ArticleListItemResp{
+		ID:        article.ID,
+		Title:     article.Title,
+		Summary:   article.Summary,
+		Cover:     article.Cover,
+		ViewCount: article.ViewCount,
+		LikeCount: article.LikeCount,
+		IsTop:     article.IsTop,
+		UserID:    article.UserID,
+		CreatedAt: article.CreatedAt,
+	}
+}
+
+func (a *ArticleService) GetInfo(id uint) (response.ArticleInfoResp, error) {
 	var article basic.Article
 	err := global.DB.Where("id = ?", id).First(&article).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return basic.Article{}, fmt.Errorf("文章不存在")
+			return response.ArticleInfoResp{}, fmt.Errorf("文章不存在")
 		}
 		global.Log.Error("查询文章详情失败", zap.Error(err), zap.Uint("articleID", id))
-		return basic.Article{}, fmt.Errorf("查询文章失败，请稍后重试")
+		return response.ArticleInfoResp{}, fmt.Errorf("查询文章失败，请稍后重试")
 	}
-	return article, nil
+	return buildArticleInfoResp(article), nil
 }
 
-func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]basic.Article, int64, error) {
+func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]response.ArticleListItemResp, int64, error) {
 	query := global.DB.Model(&basic.Article{}).Where("user_id = ?", userId)
 
 	var total int64
@@ -124,10 +157,14 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]bas
 		return nil, 0, fmt.Errorf("查询用户文章列表失败，请稍后重试")
 	}
 
-	return articles, total, nil
+	list := make([]response.ArticleListItemResp, 0, len(articles))
+	for _, article := range articles {
+		list = append(list, buildArticleListItemResp(article))
+	}
+	return list, total, nil
 }
 
-func (a *ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article, int64, error) {
+func (a *ArticleService) List(req request.ArticleQueryListReq) ([]response.ArticleListItemResp, int64, error) {
 	query := global.DB.Model(&basic.Article{})
 
 	if req.Title != "" {
@@ -156,5 +193,9 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]basic.Article,
 		return nil, 0, fmt.Errorf("查询文章列表失败，请稍后重试")
 	}
 
-	return articles, total, nil
+	list := make([]response.ArticleListItemResp, 0, len(articles))
+	for _, article := range articles {
+		list = append(list, buildArticleListItemResp(article))
+	}
+	return list, total, nil
 }
