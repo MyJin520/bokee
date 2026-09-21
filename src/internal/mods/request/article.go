@@ -13,7 +13,7 @@ type UpdateArticleRequest struct {
 	Content *string `json:"content,omitempty"`                   // 正文内容
 	Summary *string `json:"summary,omitempty"`                   // 文章摘要
 	Cover   *string `json:"cover,omitempty"`                     // 封面图 URL
-	IsTop   *bool   `json:"is_top,omitempty"`                    // 是否置顶
+	IsTop   *bool   `json:"isTop,omitempty"`                     // 是否置顶
 }
 
 type ArticleQueryListReq struct {

@@ -17,7 +17,7 @@ type UserLoginReq struct {
 
 // UserUpdateReq 更新用户
 type UserUpdateReq struct {
-	Username *string `json:"name" label:"用户名"`
+	Username *string `json:"username" label:"用户名"`
 	Phone    *string `json:"phone" label:"手机号"`
 	Email    *string `json:"email" label:"邮箱" validate:"omitempty,email"`
 	Avatar   *string `json:"avatar" label:"头像"`
@@ -25,9 +25,9 @@ type UserUpdateReq struct {
 
 // ForgetPasswordReq 忘记密码
 type ForgetPasswordReq struct {
-	OldPassword   string `json:"old_password" label:"旧密码" validate:"required"`
-	NewPassword   string `json:"new_password" label:"新密码" validate:"required,min=6"`
-	SpecifyUserID uint   `json:"specify_user_id"`
+	OldPassword   string `json:"oldPassword" label:"旧密码" validate:"required"`
+	NewPassword   string `json:"newPassword" label:"新密码" validate:"required,min=6"`
+	SpecifyUserID uint   `json:"specifyUserId"`
 }
 
 // UserListReq 用户列表查询请求

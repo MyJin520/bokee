@@ -25,9 +25,9 @@ func ExtractBearerToken(authHeader string) (string, error) {
 
 // CustomClaims 自定义 Claims，可根据业务扩展
 type CustomClaims struct {
-	UserID    uint   `json:"user_id"`
-	Username  string `json:"user_name"`
-	RoleCodes []uint `json:"role_codes"`
+	UserID    uint   `json:"userId"`
+	Username  string `json:"userName"`
+	RoleCodes []uint `json:"roleCodes"`
 	jwt.RegisteredClaims
 }
 

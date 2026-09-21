@@ -8,6 +8,28 @@ import (
 	"strings"
 )
 
+// camelToSnake 将小驼峰转为蛇形：isTop → is_top，ASCII 字节级转换，零内存重分配
+func camelToSnake(s string) string {
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 2) // 预分配，最多加 2 个 _
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			if i > 0 {
+				b.WriteByte('_')
+			}
+			b.WriteByte(c + 32) // 大写 → 小写
+		} else {
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// StructToUpdateMap 将结构体的非空指针字段转为更新 map。
 func StructToUpdateMap(data interface{}) map[string]interface{} {
 	updates := make(map[string]interface{})
 	v := reflect.ValueOf(data)
@@ -21,7 +43,7 @@ func StructToUpdateMap(data interface{}) map[string]interface{} {
 				continue
 			}
 			tagName := strings.Split(tag, ",")[0]
-			updates[tagName] = field.Elem().Interface()
+			updates[camelToSnake(tagName)] = field.Elem().Interface()
 		}
 	}
 	return updates

@@ -12,7 +12,7 @@ type RoleCreateReq struct {
 // RoleUpdateReq 更新角色请求
 type RoleUpdateReq struct {
 	ID       uint    `json:"id" label:"角色ID" validate:"required"`
-	RoleName *string `json:"role_name" label:"角色名称"`
+	RoleName *string `json:"roleName" label:"角色名称"`
 	Sort     *int    `json:"sort" label:"排序"`
 	Status   *string `json:"status" label:"状态"`
 	Remark   *string `json:"remark" label:"备注"`
