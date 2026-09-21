@@ -1,6 +1,7 @@
 package base
 
 import (
+	"bokee/pkg/commons"
 	"context"
 	"errors"
 	"fmt"
@@ -171,27 +172,16 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 
 // Update 更新当前用户资料，落库成功后失效用户信息缓存
 func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid uint) error {
-	// 构建需要更新的字段映射，只更新非空字段
-	updates := make(map[string]interface{})
-
-	if req.Username != "" {
-		updates["name"] = req.Username
-	}
-	if req.Phone != "" {
-		updates["phone"] = req.Phone
-	}
-	if req.Email != "" {
-		// TODO: 验证邮箱验证码后再允许更新
-		updates["email"] = req.Email
-	}
-	if req.Avatar != "" {
-		updates["avatar"] = req.Avatar
-	}
+	// 使用公共更新方法构建更新 map
+	updates := commons.StructToUpdateMap(req)
 
 	if len(updates) == 0 {
 		global.Log.Warn("更新用户失败：没有需要更新的字段", zap.Uint("userID", uid))
 		return fmt.Errorf("没有需要更新的字段")
 	}
+
+	// TODO: 更新邮箱前需验证邮箱验证码
+	// updates map 中已包含 email 字段，后续增加验证逻辑后在此拦截
 
 	result := global.DB.Model(&basic.User{}).Where("id = ?", uid).Updates(updates)
 	if result.Error != nil {

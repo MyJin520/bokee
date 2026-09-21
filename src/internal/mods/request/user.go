@@ -17,10 +17,10 @@ type UserLoginReq struct {
 
 // UserUpdateReq 更新用户
 type UserUpdateReq struct {
-	Username string `json:"username" label:"用户名"`
-	Phone    string `json:"phone" label:"手机号"`
-	Email    string `json:"email" label:"邮箱" validate:"omitempty,email"`
-	Avatar   string `json:"avatar"`
+	Username *string `json:"name" label:"用户名"`
+	Phone    *string `json:"phone" label:"手机号"`
+	Email    *string `json:"email" label:"邮箱" validate:"omitempty,email"`
+	Avatar   *string `json:"avatar" label:"头像"`
 }
 
 // ForgetPasswordReq 忘记密码

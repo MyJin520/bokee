@@ -6,6 +6,7 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/pkg/casbinx"
+	"bokee/pkg/commons"
 	"bokee/pkg/redisx"
 	"bokee/pkg/routex"
 	"cmp"
@@ -96,27 +97,23 @@ func (s *RoleService) Update(ctx context.Context, req request.RoleUpdateReq) err
 	}
 
 	// 校验角色名称是否与其他角色冲突
-	if req.RoleName != "" && req.RoleName != role.RoleName {
+	if req.RoleName != nil && *req.RoleName != role.RoleName {
 		var nameCount int64
-		global.DB.Model(&basic.Role{}).Where("role_name = ? AND id != ?", req.RoleName, req.ID).Count(&nameCount)
+		global.DB.Model(&basic.Role{}).Where("role_name = ? AND id != ?", *req.RoleName, req.ID).Count(&nameCount)
 		if nameCount > 0 {
-			global.Log.Warn("更新角色失败：角色名称已存在", zap.String("roleName", req.RoleName))
+			global.Log.Warn("更新角色失败：角色名称已存在", zap.String("roleName", *req.RoleName))
 			return fmt.Errorf("角色名称已存在")
 		}
 	}
-	// todo 后续使用公共更新方法
-	// 构建更新字段
-	updates := make(map[string]interface{})
-	if req.RoleName != "" {
-		updates["role_name"] = req.RoleName
+
+	// 使用公共更新方法构建更新 map
+	updates := commons.StructToUpdateMap(req)
+	delete(updates, "id")
+
+	// Sort 需与旧值比较，若未变更则不提交（避免因 Sort 相等而触发无意义的 UPDATE）
+	if req.Sort != nil && *req.Sort == role.Sort {
+		delete(updates, "sort")
 	}
-	if req.Sort != role.Sort {
-		updates["sort"] = req.Sort
-	}
-	if req.Status != "" {
-		updates["status"] = req.Status
-	}
-	updates["remark"] = req.Remark // remark 允许置空
 
 	if len(updates) == 0 {
 		global.Log.Warn("更新角色失败：没有需要更新的字段", zap.Uint("roleID", req.ID))
