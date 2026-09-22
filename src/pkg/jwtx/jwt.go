@@ -26,7 +26,7 @@ func ExtractBearerToken(authHeader string) (string, error) {
 // CustomClaims 自定义 Claims，可根据业务扩展
 type CustomClaims struct {
 	UserID    uint   `json:"userId"`
-	Username  string `json:"userName"`
+	UserName  string `json:"userName"`
 	RoleCodes []uint `json:"roleCodes"`
 	jwt.RegisteredClaims
 }
@@ -52,7 +52,7 @@ func generateJTI() (string, error) {
 }
 
 // GenerateToken 生成 JWT Token
-func GenerateToken(userID uint, username string, roleCodes []uint) (string, error) {
+func GenerateToken(userID uint, userName string, roleCodes []uint) (string, error) {
 	expire, err := timex.ParseDuration(global.Config.JWT.Expire)
 	if err != nil {
 		return "", err
@@ -66,7 +66,7 @@ func GenerateToken(userID uint, username string, roleCodes []uint) (string, erro
 	now := time.Now()
 	claims := CustomClaims{
 		UserID:    userID,
-		Username:  username,
+		UserName:  userName,
 		RoleCodes: roleCodes,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
@@ -74,7 +74,7 @@ func GenerateToken(userID uint, username string, roleCodes []uint) (string, erro
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    global.Config.JWT.Issuer,
-			Subject:   username + "kim",
+			Subject:   userName + "kim",
 			Audience:  global.Config.JWT.Audience,
 		},
 	}
