@@ -33,6 +33,6 @@ type RoleAuthItem struct {
 
 // RoleAuthReq 角色授权请求（支持批量）
 type RoleAuthReq struct {
-	RoleID uint           `json:"roleID" label:"角色ID" validate:"required"`             // 角色ID
+	RoleID uint           `json:"roleId" label:"角色ID" validate:"required"`             // 角色ID
 	Rules  []RoleAuthItem `json:"rules" label:"授权规则列表" validate:"required,min=1,dive"` // 授权规则列表
 }

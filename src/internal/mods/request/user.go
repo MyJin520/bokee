@@ -2,7 +2,7 @@ package request
 
 // UserCreateReq 创建用户
 type UserCreateReq struct {
-	Username string `json:"username" label:"用户名" validate:"required"`
+	Username string `json:"userName" label:"用户名" validate:"required"`
 	Password string `json:"password" label:"密码" validate:"required,min=6"`
 	Phone    string `json:"phone" label:"手机号"`
 	Email    string `json:"email" label:"邮箱" validate:"omitempty,email"`
@@ -11,13 +11,13 @@ type UserCreateReq struct {
 
 // UserLoginReq 用户登陆
 type UserLoginReq struct {
-	Username string `json:"username" label:"用户名" validate:"required"`
+	Username string `json:"userName" label:"用户名" validate:"required"`
 	Password string `json:"password" label:"密码" validate:"required"`
 }
 
 // UserUpdateReq 更新用户
 type UserUpdateReq struct {
-	Username *string `json:"username" label:"用户名"`
+	Username *string `json:"userName" label:"用户名"`
 	Phone    *string `json:"phone" label:"手机号"`
 	Email    *string `json:"email" label:"邮箱" validate:"omitempty,email"`
 	Avatar   *string `json:"avatar" label:"头像"`
