@@ -142,11 +142,11 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 		ok     bool
 	)
 
-	userIDStr := c.Query("userId")
-	if userIDStr != "" {
-		parsed, parseErr := strconv.ParseUint(userIDStr, 10, 32)
+	idStr := c.Query("id")
+	if idStr != "" {
+		parsed, parseErr := strconv.ParseUint(idStr, 10, 32)
 		if parseErr != nil {
-			global.Log.Warn("用户ID格式错误", zap.String("userID", userIDStr))
+			global.Log.Warn("用户ID格式错误", zap.String("id", idStr))
 			response.FailWithRequest("无效的用户ID", c)
 			return
 		}
