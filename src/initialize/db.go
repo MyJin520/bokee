@@ -8,7 +8,7 @@ import (
 	db "bokee/pkg/gormx"
 	"bokee/pkg/randx"
 	"fmt"
-	"gorm.io/gorm"
+	"go.uber.org/zap"
 )
 
 func initDb(cfg *config.Config) {
@@ -31,22 +31,24 @@ func migrateTable() {
 	if err != nil {
 		panic("数据库迁移失败: " + err.Error())
 	}
+
+	// 历史遗留：手机号/邮箱为选填字段，旧表却带有 NOT NULL 唯一索引，
+	// 多个未填手机号的用户会因空字符串冲突而无法注册；AutoMigrate 不会自动删除索引，这里显式移除。
+	// 非空手机号/邮箱的唯一性由业务层校验保证。
+	for _, indexName := range []string{"idx_users_phone", "idx_users_email"} {
+		if global.DB.Migrator().HasIndex(&basic.User{}, indexName) {
+			if err := global.DB.Migrator().DropIndex(&basic.User{}, indexName); err != nil {
+				global.Log.Error(fmt.Sprintf("移除遗留唯一索引 %s 失败: %v", indexName, err))
+			} else {
+				global.Log.Info(fmt.Sprintf("已移除遗留唯一索引 %s", indexName))
+			}
+		}
+	}
 }
 
-// 仅在首次启动时初始化角色和超级管理员
+// 初始化内置角色与超级管理员：每次启动都会确保内置角色存在，并为历史无角色用户补授普通用户角色
 func initRolesAndUser() {
-	var userCount int64
-	if err := global.DB.Model(&basic.User{}).Count(&userCount).Error; err != nil {
-		global.Log.Warn(fmt.Sprintf("检查用户表是否为空时出错: %v", err))
-		return
-	}
-	if userCount > 0 {
-		global.Log.Info("用户表非空，跳过超级管理员初始化")
-		return
-	}
-
-	global.Log.Info("检测到空用户表，开始初始化默认角色和管理员...")
-
+	// 1. 确保内置角色存在（超级管理员、普通用户）
 	adminRole := basic.Role{
 		RoleName: "超级管理员",
 		RoleCode: uint(global.SuperRoleCode),
@@ -54,40 +56,82 @@ func initRolesAndUser() {
 		Status:   "normal",
 		Remark:   "系统内置超级管理员角色",
 	}
-
-	defaultPwd := global.Config.System.DefaultAdminPassword
-	randomPwd := defaultPwd == ""
-	if randomPwd {
-		defaultPwd = randx.RandomDigitCode(10)
+	if err := global.DB.Where("role_code = ?", adminRole.RoleCode).FirstOrCreate(&adminRole).Error; err != nil {
+		panic("初始化超级管理员角色失败: " + err.Error())
 	}
 
-	password, err := hash.GeneratePassword(defaultPwd)
-	if err != nil {
-		panic("密码加密失败: " + err.Error())
-	}
-
-	newUser := &basic.User{
-		Name:     "superAdmin",
-		Password: password,
+	userRole := basic.Role{
+		RoleName: "普通用户",
+		RoleCode: uint(global.UserRoleCode),
+		Sort:     2,
 		Status:   "normal",
+		Remark:   "注册用户默认角色，拥有账户自助与个人文章管理权限",
+	}
+	if err := global.DB.Where("role_code = ?", userRole.RoleCode).FirstOrCreate(&userRole).Error; err != nil {
+		panic("初始化普通用户角色失败: " + err.Error())
 	}
 
-	err = global.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("role_code = ?", adminRole.RoleCode).FirstOrCreate(&adminRole).Error; err != nil {
-			return fmt.Errorf("初始化默认角色失败: %w", err)
+	// 2. 首次启动（用户表为空）时创建超级管理员
+	var userCount int64
+	if err := global.DB.Model(&basic.User{}).Count(&userCount).Error; err != nil {
+		global.Log.Warn(fmt.Sprintf("检查用户表是否为空时出错: %v", err))
+		return
+	}
+	if userCount == 0 {
+		global.Log.Info("检测到空用户表，开始初始化超级管理员...")
+
+		defaultPwd := global.Config.System.DefaultAdminPassword
+		randomPwd := defaultPwd == ""
+		if randomPwd {
+			defaultPwd = randx.RandomDigitCode(10)
 		}
-		newUser.Roles = []basic.Role{adminRole}
-		if err := tx.Create(newUser).Error; err != nil {
-			return fmt.Errorf("创建用户失败: %w", err)
+
+		password, err := hash.GeneratePassword(defaultPwd)
+		if err != nil {
+			panic("密码加密失败: " + err.Error())
 		}
-		return nil
-	})
-	if err != nil {
-		panic("初始化超级管理员失败: " + err.Error())
+
+		newUser := &basic.User{
+			Name:     "superAdmin",
+			Password: password,
+			Status:   "normal",
+			Roles:    []basic.Role{adminRole},
+		}
+
+		if err := global.DB.Create(newUser).Error; err != nil {
+			panic("初始化超级管理员失败: " + err.Error())
+		}
+
+		global.Log.Info(fmt.Sprintf("✅ 初始化完成：已创建超级管理员账户（%s）并关联超级管理员角色", newUser.Name))
+		if randomPwd {
+			global.Log.Info(fmt.Sprintf("未配置 default-admin-password，已自动生成随机密码: %s，请登录后立即修改", defaultPwd))
+		}
+		return
 	}
 
-	global.Log.Info(fmt.Sprintf("✅ 初始化完成：已创建超级管理员账户（%s）并关联超级管理员角色", newUser.Name))
-	if randomPwd {
-		global.Log.Info(fmt.Sprintf("未配置 default-admin-password，已自动生成随机密码: %s，请登录后立即修改", defaultPwd))
+	global.Log.Info("用户表非空，跳过超级管理员初始化")
+	backfillDefaultUserRole(userRole)
+}
+
+// backfillDefaultUserRole 为历史上没有任何角色的用户补授普通用户角色（注册逻辑上线前创建的账号）
+func backfillDefaultUserRole(userRole basic.Role) {
+	var users []basic.User
+	if err := global.DB.Preload("Roles").Find(&users).Error; err != nil {
+		global.Log.Warn(fmt.Sprintf("回填默认角色查询用户失败: %v", err))
+		return
+	}
+	backfilled := 0
+	for _, user := range users {
+		if len(user.Roles) > 0 {
+			continue
+		}
+		if err := global.DB.Model(&user).Association("Roles").Append(&userRole); err != nil {
+			global.Log.Error("回填普通用户角色失败", zap.Uint("userID", user.ID), zap.Error(err))
+			continue
+		}
+		backfilled++
+	}
+	if backfilled > 0 {
+		global.Log.Info(fmt.Sprintf("已为 %d 个无角色用户补授普通用户角色", backfilled))
 	}
 }

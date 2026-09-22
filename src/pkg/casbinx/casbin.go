@@ -272,6 +272,76 @@ func InitSuperRoleCasbin(engine *gin.Engine) {
 	}
 }
 
+// defaultUserRoleRules 普通用户（注册用户）默认可访问的自助路由：
+// 账户自助（资料查看/修改、登出、改密）与个人文章管理（创建/更新/删除自己的文章）。
+// 用户/角色管理等后台路由不在此列。
+var defaultUserRoleRules = [][2]string{
+	{"/pri/user/get_info", "GET"},
+	{"/pri/user/update", "PUT"},
+	{"/pri/user/logout", "GET"},
+	{"/pri/user/forget_password", "POST"},
+	{"/pri/article/create", "POST"},
+	{"/pri/article/update", "PUT"},
+	{"/pri/article/delete", "DELETE"},
+}
+
+// InitDefaultUserRoleCasbin 为普通用户角色幂等补齐自助路由权限（只增不删，
+// 管理员后续通过角色授权接口追加的权限不会被回收）
+func InitDefaultUserRoleCasbin(engine *gin.Engine) {
+	roleCodeStr := strconv.Itoa(global.UserRoleCode)
+	enforcer, err := GetEnforcer()
+	if err != nil {
+		global.Log.Error("获取 Casbin 执行器失败", zap.Error(err))
+		return
+	}
+
+	// 已注册路由集合，用于校验权限清单中的路径真实存在
+	registered := make(map[string]struct{}, len(engine.Routes()))
+	for _, route := range engine.Routes() {
+		registered[route.Path+"|"+route.Method] = struct{}{}
+	}
+
+	desiredPolicies := make([][]string, 0, len(defaultUserRoleRules))
+	for _, rule := range defaultUserRoleRules {
+		path, method := rule[0], rule[1]
+		if _, ok := registered[path+"|"+method]; !ok {
+			global.Log.Warn("普通用户默认权限路由不存在，已跳过", zap.String("path", path), zap.String("method", method))
+			continue
+		}
+		desiredPolicies = append(desiredPolicies, []string{roleCodeStr, path, method})
+	}
+
+	existingPolicies, err := enforcer.GetFilteredPolicy(0, roleCodeStr)
+	if err != nil {
+		global.Log.Error("获取普通用户现有策略失败", zap.Error(err))
+		return
+	}
+	existing := make(map[string]struct{}, len(existingPolicies))
+	for _, p := range existingPolicies {
+		if len(p) >= 3 {
+			existing[p[1]+"|"+p[2]] = struct{}{}
+		}
+	}
+
+	var toAdd [][]string
+	for _, p := range desiredPolicies {
+		key := p[1] + "|" + p[2]
+		if _, ok := existing[key]; !ok {
+			toAdd = append(toAdd, p)
+		}
+	}
+
+	if len(toAdd) == 0 {
+		global.Log.Info("普通用户角色策略已是最新，无需更新")
+		return
+	}
+	if _, err := enforcer.AddPolicies(toAdd); err != nil {
+		global.Log.Error("批量添加普通用户策略失败", zap.Error(err))
+		return
+	}
+	global.Log.Info(fmt.Sprintf("普通用户角色权限同步完成（新增 %d 条）", len(toAdd)))
+}
+
 // GetPrivateRoutes 获取所有私有路由策略
 func GetPrivateRoutes() ([][]string, error) {
 	allPolicies, err := GetAllPolicies()

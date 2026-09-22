@@ -170,12 +170,19 @@ func buildArticleListItemResp(article basic.Article) response.ArticleListItemRes
 }
 
 func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.ArticleInfoResp, error) {
+	// 每次访问阅读量 +1（原子自增，忽略缓存命中与否）
+	if err := global.DB.Model(&basic.Article{}).Where("id = ?", id).
+		UpdateColumn("view_count", gorm.Expr("view_count + ?", 1)).Error; err != nil {
+		global.Log.Warn("文章阅读量自增失败", zap.Error(err), zap.Uint("articleID", id))
+	}
+
 	// 先查缓存
 	key := articleInfoKey(id)
 	var cached response.ArticleInfoResp
 	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
 		global.Log.Error("读取文章详情缓存失败，降级查库", zap.Error(err), zap.Uint("articleID", id))
 	} else if cached.ID != 0 {
+		cached.ViewCount++
 		return cached, nil
 	}
 

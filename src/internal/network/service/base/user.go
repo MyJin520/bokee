@@ -76,22 +76,43 @@ func buildUserInfoResp(user basic.User) response.UserInfoResp {
 	}
 }
 
-// Create 用户注册：内置注册防刷（同一手机号窗口内仅允许尝试一次），Redis 异常放行不影响注册
+// Create 用户注册：内置注册防刷（同一手机号/邮箱窗口内仅允许尝试一次），Redis 异常放行不影响注册
 func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) error {
-	// 注册防刷：SetNX 成功才继续，失败说明窗口内已尝试过（Redis 异常放行）
-	if ok, err := redisx.SetNX(ctx, userRegisterKey(req.Phone), "1", 1*time.Minute); err != nil {
-		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("phone", req.Phone))
+	// 注册防刷：SetNX 成功才继续，失败说明窗口内已尝试过（Redis 异常放行）；
+	// 未填手机号时以邮箱作为限流维度，避免空手机号共享同一个限流键
+	limitIdentity := req.Phone
+	if limitIdentity == "" {
+		limitIdentity = req.Email
+	}
+	if ok, err := redisx.SetNX(ctx, userRegisterKey(limitIdentity), "1", 1*time.Minute); err != nil {
+		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("identity", limitIdentity))
 	} else if !ok {
-		global.Log.Warn("注册过于频繁", zap.String("phone", req.Phone))
+		global.Log.Warn("注册过于频繁", zap.String("identity", limitIdentity))
 		return fmt.Errorf("注册过于频繁，请稍后再试")
 	}
 
-	var count int64
-	global.DB.Model(&basic.User{}).Where("phone = ? OR email = ?", req.Phone, req.Email).Count(&count)
-	if count > 0 {
-		global.Log.Warn("注册失败：手机号或邮箱已被注册",
-			zap.String("phone", req.Phone), zap.String("email", req.Email))
-		return fmt.Errorf("注册失败>手机号或邮箱已被注册")
+	// 唯一性校验：空值不参与匹配（手机号/邮箱为选填，空字符串不能作为已注册依据）；
+	// 两者都为空时跳过校验
+	if req.Phone != "" || req.Email != "" {
+		duplicateQuery := global.DB.Model(&basic.User{})
+		switch {
+		case req.Phone != "" && req.Email != "":
+			duplicateQuery = duplicateQuery.Where("phone = ? OR email = ?", req.Phone, req.Email)
+		case req.Phone != "":
+			duplicateQuery = duplicateQuery.Where("phone = ?", req.Phone)
+		case req.Email != "":
+			duplicateQuery = duplicateQuery.Where("email = ?", req.Email)
+		}
+		var count int64
+		if err := duplicateQuery.Count(&count).Error; err != nil {
+			global.Log.Error("注册唯一性校验失败", zap.Error(err))
+			return fmt.Errorf("注册失败，请稍后重试")
+		}
+		if count > 0 {
+			global.Log.Warn("注册失败：手机号或邮箱已被注册",
+				zap.String("phone", req.Phone), zap.String("email", req.Email))
+			return fmt.Errorf("注册失败>手机号或邮箱已被注册")
+		}
 	}
 
 	hashedPwd, err := hash.GeneratePassword(req.Password)
@@ -106,6 +127,14 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 		Phone:    req.Phone,
 		Email:    req.Email,
 		Avatar:   req.Avatar,
+	}
+
+	// 新用户绑定普通用户默认角色；角色缺失时不阻断注册，仅记录日志
+	var defaultRole basic.Role
+	if err := global.DB.Where("role_code = ?", global.UserRoleCode).First(&defaultRole).Error; err != nil {
+		global.Log.Error("查询普通用户默认角色失败，新用户将暂无角色", zap.Error(err))
+	} else {
+		user.Roles = []basic.Role{defaultRole}
 	}
 
 	if err := global.DB.Create(user).Error; err != nil {
@@ -181,6 +210,41 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 	if len(updates) == 0 {
 		global.Log.Warn("更新用户失败：没有需要更新的字段", zap.Uint("userID", uid))
 		return fmt.Errorf("没有需要更新的字段")
+	}
+
+	// 手机号/邮箱唯一性校验：仅当本次更新携带非空手机号或邮箱时执行（空值不参与匹配，排除自身）
+	var (
+		checkPhone string
+		checkEmail string
+		hasContact bool
+	)
+	if req.Phone != nil && *req.Phone != "" {
+		checkPhone = *req.Phone
+		hasContact = true
+	}
+	if req.Email != nil && *req.Email != "" {
+		checkEmail = *req.Email
+		hasContact = true
+	}
+	if hasContact {
+		duplicateQuery := global.DB.Model(&basic.User{}).Where("id <> ?", uid)
+		switch {
+		case checkPhone != "" && checkEmail != "":
+			duplicateQuery = duplicateQuery.Where("phone = ? OR email = ?", checkPhone, checkEmail)
+		case checkPhone != "":
+			duplicateQuery = duplicateQuery.Where("phone = ?", checkPhone)
+		default:
+			duplicateQuery = duplicateQuery.Where("email = ?", checkEmail)
+		}
+		var duplicateCount int64
+		if err := duplicateQuery.Count(&duplicateCount).Error; err != nil {
+			global.Log.Error("更新用户唯一性校验失败", zap.Error(err), zap.Uint("userID", uid))
+			return fmt.Errorf("更新用户失败，请稍后重试")
+		}
+		if duplicateCount > 0 {
+			global.Log.Warn("更新用户失败：手机号或邮箱已被占用", zap.Uint("userID", uid))
+			return fmt.Errorf("手机号或邮箱已被其他用户使用")
+		}
 	}
 
 	// TODO: 更新邮箱前需验证邮箱验证码
