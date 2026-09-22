@@ -26,6 +26,13 @@ export interface ArticleListItem {
   createdAt: string
 }
 
+/** 文章作者公开信息 */
+export interface AuthorInfo {
+  id: number
+  name: string
+  avatar: string
+}
+
 /** 文章详情 */
 export interface ArticleInfo {
   id: number
@@ -37,6 +44,7 @@ export interface ArticleInfo {
   likeCount: number
   isTop: boolean
   userId: number
+  author: AuthorInfo
   createdAt: string
   updatedAt: string
 }

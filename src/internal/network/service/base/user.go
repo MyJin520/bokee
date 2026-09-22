@@ -11,6 +11,7 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
+	"bokee/internal/network/service/articles"
 	"bokee/pkg/cryptox/hash"
 	"bokee/pkg/jwtx"
 	"bokee/pkg/limitx"
@@ -21,6 +22,8 @@ import (
 )
 
 type UserService struct{}
+
+var articleService = &articles.ArticleService{}
 
 var (
 	// loginLimiter 登录防爆破：10min 窗口内 5 次失败锁定 30min
@@ -195,6 +198,13 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 
 	// 落库成功后失效缓存
 	deleteUserInfoCache(ctx, uid)
+
+	// 若姓名或头像变更，同步失效该用户所有文章详情缓存，保证文章页作者信息及时更新
+	if _, hasName := updates["user_name"]; hasName {
+		articleService.DeleteArticleInfoCacheByUser(ctx, uid)
+	} else if _, hasAvatar := updates["avatar"]; hasAvatar {
+		articleService.DeleteArticleInfoCacheByUser(ctx, uid)
+	}
 	return nil
 }
 

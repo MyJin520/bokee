@@ -34,6 +34,19 @@ func deleteArticleInfoCache(ctx context.Context, ids ...uint) {
 	}
 }
 
+// DeleteArticleInfoCacheByUser 失效指定用户的所有文章详情缓存（如用户更新姓名/头像时调用）
+func (a *ArticleService) DeleteArticleInfoCacheByUser(ctx context.Context, userId uint) {
+	var ids []uint
+	if err := global.DB.Model(&basic.Article{}).Where("user_id = ?", userId).Pluck("id", &ids).Error; err != nil {
+		global.Log.Warn("查询用户文章ID失败，跳过缓存失效", zap.Error(err), zap.Uint("userID", userId))
+		return
+	}
+	if len(ids) == 0 {
+		return
+	}
+	deleteArticleInfoCache(ctx, ids...)
+}
+
 func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
 	newArticle := basic.Article{
 		UserID:  userId,
@@ -120,7 +133,7 @@ func (a *ArticleService) Delete(ctx context.Context, id uint, userId uint) error
 }
 
 // buildArticleInfoResp 将文章模型转换为详情响应结构体
-func buildArticleInfoResp(article basic.Article) response.ArticleInfoResp {
+func buildArticleInfoResp(article basic.Article, user basic.User) response.ArticleInfoResp {
 	return response.ArticleInfoResp{
 		ID:        article.ID,
 		Title:     article.Title,
@@ -131,6 +144,11 @@ func buildArticleInfoResp(article basic.Article) response.ArticleInfoResp {
 		LikeCount: article.LikeCount,
 		IsTop:     article.IsTop,
 		UserID:    article.UserID,
+		Author: response.AuthorInfo{
+			ID:     user.ID,
+			Name:   user.Name,
+			Avatar: user.Avatar,
+		},
 		CreatedAt: article.CreatedAt,
 		UpdatedAt: article.UpdatedAt,
 	}
@@ -172,8 +190,14 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 		return response.ArticleInfoResp{}, fmt.Errorf("查询文章失败，请稍后重试")
 	}
 
+	// 关联查询作者信息
+	var user basic.User
+	if err := global.DB.Select("id", "name", "avatar").Where("id = ?", article.UserID).First(&user).Error; err != nil {
+		global.Log.Warn("查询文章作者信息失败", zap.Error(err), zap.Uint("userID", article.UserID))
+	}
+
 	// 查库成功后回填缓存
-	resp := buildArticleInfoResp(article)
+	resp := buildArticleInfoResp(article, user)
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填文章详情缓存失败", zap.Error(err), zap.Uint("articleID", id))
 	}

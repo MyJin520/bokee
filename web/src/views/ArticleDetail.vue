@@ -20,9 +20,9 @@ marked.use(
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
-import { getArticleInfo, deleteArticle } from '@/api/article'
+import { getArticleInfo, deleteArticle, getUserArticleList } from '@/api/article'
 import { useUserStore } from '@/stores/user'
-import type { ArticleInfo } from '@/types'
+import type { ArticleInfo, ArticleListItem } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,15 +31,34 @@ const userStore = useUserStore()
 const article = ref<ArticleInfo | null>(null)
 const renderedContent = ref('')
 const loading = ref(true)
+const authorArticles = ref<ArticleListItem[]>([])
+const authorArticlesLoading = ref(false)
 
-// 当 article 变化时异步解析 Markdown
+// 当 article 变化时异步解析 Markdown 并加载作者其他文章
 watch(article, async (val) => {
   if (!val?.content) {
     renderedContent.value = ''
     return
   }
   renderedContent.value = await marked.parse(val.content)
+  if (val.userId) {
+    fetchAuthorArticles(val.userId, val.id)
+  }
 })
+
+/** 加载作者的其他文章（排除当前文章） */
+async function fetchAuthorArticles(userId: number, currentArticleId: number) {
+  authorArticlesLoading.value = true
+  try {
+    const res = await getUserArticleList(userId, 1, 10)
+    authorArticles.value = res.list.filter((a) => a.id !== currentArticleId)
+  } catch (e) {
+    console.error('加载作者其他文章失败', e)
+    authorArticles.value = []
+  } finally {
+    authorArticlesLoading.value = false
+  }
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -49,6 +68,15 @@ function formatDate(dateStr: string): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  })
+}
+
+function formatShortDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   })
 }
 
@@ -98,6 +126,10 @@ async function handleDelete() {
     alert(e instanceof Error ? e.message : '删除失败')
   }
 }
+
+function goToArticle(id: number) {
+  router.push(`/article/${id}`)
+}
 </script>
 
 <template>
@@ -107,33 +139,65 @@ async function handleDelete() {
   </div>
 
   <div v-else-if="article" class="article-detail">
-    <article class="detail-card">
-      <h1 class="detail-title">{{ article.title }}</h1>
+    <div class="detail-layout">
+      <article class="detail-card">
+        <h1 class="detail-title">{{ article.title }}</h1>
 
-      <div class="detail-meta">
-        <span class="meta-item">{{ formatDate(article.createdAt) }}</span>
-        <span class="meta-divider">·</span>
-        <span class="meta-item">👁 {{ article.viewCount }} 阅读</span>
-        <span class="meta-divider">·</span>
-        <span class="meta-item">👍 {{ article.likeCount }} 点赞</span>
-        <span v-if="article.isTop" class="top-badge">置顶</span>
-      </div>
+        <div class="detail-meta">
+          <span class="meta-item">{{ formatDate(article.createdAt) }}</span>
+          <span class="meta-divider">·</span>
+          <span class="meta-item">👁 {{ article.viewCount }} 阅读</span>
+          <span class="meta-divider">·</span>
+          <span class="meta-item">👍 {{ article.likeCount }} 点赞</span>
+          <span v-if="article.isTop" class="top-badge">置顶</span>
+        </div>
 
-      <div v-if="article.summary" class="detail-summary">
-        <p>{{ article.summary }}</p>
-      </div>
+        <div v-if="article.summary" class="detail-summary">
+          <p>{{ article.summary }}</p>
+        </div>
 
-      <div class="detail-content markdown-body" v-html="renderedContent"></div>
+        <div class="detail-content markdown-body" v-html="renderedContent"></div>
 
-      <!-- 操作按钮：仅文章作者可见 -->
-      <div
-        v-if="userStore.userInfo?.id === article.userId"
-        class="detail-actions"
-      >
-        <button class="action-btn action-edit" @click="goToEdit">编辑</button>
-        <button class="action-btn action-delete" @click="handleDelete">删除</button>
-      </div>
-    </article>
+        <!-- 操作按钮：仅文章作者可见 -->
+        <div
+          v-if="userStore.userInfo?.id === article.userId"
+          class="detail-actions"
+        >
+          <button class="action-btn action-edit" @click="goToEdit">编辑</button>
+          <button class="action-btn action-delete" @click="handleDelete">删除</button>
+        </div>
+      </article>
+
+      <!-- 右侧边栏：作者信息 + 作者其他文章 -->
+      <aside class="detail-sidebar">
+        <!-- 作者信息卡片 -->
+        <div class="author-card">
+          <div class="author-avatar">
+            <img v-if="article.author.avatar" :src="article.author.avatar" :alt="article.author.name" />
+            <span v-else class="avatar-placeholder">{{ article.author.name?.charAt(0) || 'U' }}</span>
+          </div>
+          <div class="author-name">{{ article.author.name || '匿名用户' }}</div>
+        </div>
+
+        <!-- 作者其他文章 -->
+        <div class="author-articles">
+          <h3 class="sidebar-title">作者其他文章</h3>
+          <div v-if="authorArticlesLoading" class="sidebar-loading">加载中...</div>
+          <ul v-else-if="authorArticles.length" class="author-article-list">
+            <li
+              v-for="item in authorArticles"
+              :key="item.id"
+              class="author-article-item"
+              @click="goToArticle(item.id)"
+            >
+              <span class="article-item-title">{{ item.title }}</span>
+              <span class="article-item-meta">{{ formatShortDate(item.createdAt) }}</span>
+            </li>
+          </ul>
+          <p v-else class="sidebar-empty">暂无其他文章</p>
+        </div>
+      </aside>
+    </div>
 
     <div class="back-link">
       <router-link to="/">← 返回首页</router-link>
@@ -175,12 +239,144 @@ async function handleDelete() {
   gap: 24px;
 }
 
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: start;
+}
+
 .detail-card {
   background: var(--color-white);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: 40px;
   border: 1px solid var(--color-border);
+  min-width: 0;
+}
+
+/* 右侧边栏 */
+.detail-sidebar {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 作者信息卡片 */
+.author-card {
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  padding: 28px 20px;
+  text-align: center;
+}
+
+.author-avatar {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.author-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.author-name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* 作者其他文章 */
+.author-articles {
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  padding: 20px;
+}
+
+.sidebar-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.author-article-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.author-article-item {
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.author-article-item:hover {
+  background: #f8f9fc;
+}
+
+.article-item-title {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-item-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+}
+
+.sidebar-loading,
+.sidebar-empty {
+  font-size: 0.875rem;
+  color: var(--color-text-light);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* 响应式：窄屏时边栏下移 */
+@media (max-width: 960px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-sidebar {
+    position: static;
+  }
 }
 
 .detail-title {
