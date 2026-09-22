@@ -2,7 +2,6 @@ package files
 
 import (
 	"bokee/global"
-	"bokee/internal/mods/basic"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/files"
 
@@ -27,7 +26,7 @@ func (f *FileApi) Uploads(ctx *gin.Context) {
 		return
 	}
 
-	uploaded := make([]basic.Files, 0, len(fileHeaders))
+	uploaded := make([]response.FileResp, 0, len(fileHeaders))
 	for _, fileHeader := range fileHeaders {
 		fileRecord, err := fileService.Uploads(fileHeader)
 		if err != nil {

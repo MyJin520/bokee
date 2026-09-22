@@ -11,6 +11,7 @@ import (
 
 	"bokee/global"
 	"bokee/internal/mods/basic"
+	"bokee/internal/mods/response"
 	"bokee/pkg/filedx"
 
 	"go.uber.org/zap"
@@ -20,7 +21,7 @@ import (
 type FileService struct{}
 
 // Uploads 根据配置的 oss 类型上传文件，返回入库后的文件记录
-func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, error) {
+func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileResp, error) {
 	src, err := fileHeader.Open()
 	if err != nil {
 		global.Log.Error("打开文件失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
@@ -56,7 +57,16 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 
 	var existing basic.Files
 	if err := global.DB.Where("hash = ?", hashStr).First(&existing).Error; err == nil {
-		return &existing, nil
+		return &response.FileResp{
+			ID:               existing.ID,
+			Url:              existing.Url,
+			Ext:              existing.Ext,
+			Size:             existing.Size,
+			OriginalFileName: existing.OriginalFileName,
+			Hash:             existing.Hash,
+			CreatedAt:        existing.CreatedAt,
+			UpdatedAt:        existing.UpdatedAt,
+		}, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		global.Log.Error("查询文件记录失败", zap.Error(err), zap.String("hash", hashStr))
 		return nil, fmt.Errorf("查询文件记录失败")
@@ -89,5 +99,14 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*basic.Files, e
 		global.Log.Error("文件记录入库失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
 		return nil, fmt.Errorf("文件记录入库失败")
 	}
-	return fileRecord, nil
+	return &response.FileResp{
+		ID:               fileRecord.ID,
+		Url:              fileRecord.Url,
+		Ext:              fileRecord.Ext,
+		Size:             fileRecord.Size,
+		OriginalFileName: fileRecord.OriginalFileName,
+		Hash:             fileRecord.Hash,
+		CreatedAt:        fileRecord.CreatedAt,
+		UpdatedAt:        fileRecord.UpdatedAt,
+	}, nil
 }
