@@ -31,17 +31,17 @@ func roleInfoKey(id uint) string {
 func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, error) {
 	// 校验角色名称是否已存在
 	var nameCount int64
-	global.DB.Model(&basic.Role{}).Where("role_name = ?", req.RoleName).Count(&nameCount)
+	global.DB.Model(&basic.Role{}).Where("name = ?", req.Name).Count(&nameCount)
 	if nameCount > 0 {
-		global.Log.Warn("创建角色失败：角色名称已存在", zap.String("roleName", req.RoleName))
+		global.Log.Warn("创建角色失败：角色名称已存在", zap.String("roleName", req.Name))
 		return nil, fmt.Errorf("角色名称已存在")
 	}
 
 	// 校验角色标识是否已存在
 	var codeCount int64
-	global.DB.Model(&basic.Role{}).Where("role_code = ?", req.RoleCode).Count(&codeCount)
+	global.DB.Model(&basic.Role{}).Where("code = ?", req.Code).Count(&codeCount)
 	if codeCount > 0 {
-		global.Log.Warn("创建角色失败：角色标识已存在", zap.Uint("roleCode", req.RoleCode))
+		global.Log.Warn("创建角色失败：角色标识已存在", zap.Uint("roleCode", req.Code))
 		return nil, fmt.Errorf("角色标识已存在")
 	}
 
@@ -52,11 +52,11 @@ func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, err
 	}
 
 	role := &basic.Role{
-		RoleName: req.RoleName,
-		RoleCode: req.RoleCode,
-		Sort:     req.Sort,
-		Status:   status,
-		Remark:   req.Remark,
+		Name:   req.Name,
+		Code:   req.Code,
+		Sort:   req.Sort,
+		Status: status,
+		Remark: req.Remark,
 	}
 
 	if err := global.DB.Create(role).Error; err != nil {
@@ -66,8 +66,8 @@ func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, err
 
 	return &response.RoleResp{
 		ID:        role.ID,
-		RoleName:  role.RoleName,
-		RoleCode:  role.RoleCode,
+		Name:      role.Name,
+		Code:      role.Code,
 		Sort:      role.Sort,
 		Status:    role.Status,
 		Remark:    role.Remark,
@@ -91,17 +91,17 @@ func (s *RoleService) Update(ctx context.Context, req request.RoleUpdateReq) err
 	}
 
 	// 禁止修改超级管理员角色信息
-	if role.RoleCode == uint(global.SuperRoleCode) {
+	if role.Code == uint(global.SuperRoleCode) {
 		global.Log.Warn("更新角色失败：超级管理员角色不可修改", zap.Uint("roleID", req.ID))
 		return fmt.Errorf("超级管理员角色不可修改")
 	}
 
 	// 校验角色名称是否与其他角色冲突
-	if req.RoleName != nil && *req.RoleName != role.RoleName {
+	if req.Name != nil && *req.Name != role.Name {
 		var nameCount int64
-		global.DB.Model(&basic.Role{}).Where("role_name = ? AND id != ?", *req.RoleName, req.ID).Count(&nameCount)
+		global.DB.Model(&basic.Role{}).Where("name = ? AND id != ?", *req.Name, req.ID).Count(&nameCount)
 		if nameCount > 0 {
-			global.Log.Warn("更新角色失败：角色名称已存在", zap.String("roleName", *req.RoleName))
+			global.Log.Warn("更新角色失败：角色名称已存在", zap.String("roleName", *req.Name))
 			return fmt.Errorf("角色名称已存在")
 		}
 	}
@@ -152,7 +152,7 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error {
 	}
 
 	// 禁止删除超级管理员角色
-	if role.RoleCode == uint(global.SuperRoleCode) {
+	if role.Code == uint(global.SuperRoleCode) {
 		global.Log.Warn("删除角色失败：超级管理员角色不可删除", zap.Uint("roleID", id))
 		return fmt.Errorf("超级管理员角色不可删除")
 	}
@@ -174,7 +174,7 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error {
 		global.Log.Error("删除角色缓存失败", zap.Error(err), zap.Uint("roleID", id))
 	}
 
-	global.Log.Info("删除角色成功", zap.Uint("roleID", id), zap.String("roleName", role.RoleName))
+	global.Log.Info("删除角色成功", zap.Uint("roleID", id), zap.String("roleName", role.Name))
 	return nil
 }
 
@@ -200,8 +200,8 @@ func (s *RoleService) GetInfo(ctx context.Context, id uint) (response.RoleResp, 
 
 	resp := response.RoleResp{
 		ID:        role.ID,
-		RoleName:  role.RoleName,
-		RoleCode:  role.RoleCode,
+		Name:      role.Name,
+		Code:      role.Code,
 		Sort:      role.Sort,
 		Status:    role.Status,
 		Remark:    role.Remark,
@@ -222,8 +222,8 @@ func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64
 	query := global.DB.Model(&basic.Role{})
 
 	// 可选过滤条件
-	if req.RoleName != "" {
-		query = query.Where("role_name LIKE ?", "%"+req.RoleName+"%")
+	if req.Name != "" {
+		query = query.Where("name LIKE ?", "%"+req.Name+"%")
 	}
 	if req.Status != "" {
 		query = query.Where("status = ?", req.Status)
@@ -251,8 +251,8 @@ func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64
 	for _, role := range roles {
 		list = append(list, response.RoleResp{
 			ID:        role.ID,
-			RoleName:  role.RoleName,
-			RoleCode:  role.RoleCode,
+			Name:      role.Name,
+			Code:      role.Code,
 			Sort:      role.Sort,
 			Status:    role.Status,
 			Remark:    role.Remark,
@@ -279,7 +279,7 @@ func (s *RoleService) Auth(req request.RoleAuthReq) error {
 	}
 
 	// 禁止为超级管理员手动授权（超级管理员自动拥有全部权限）
-	if role.RoleCode == uint(global.SuperRoleCode) {
+	if role.Code == uint(global.SuperRoleCode) {
 		global.Log.Warn("角色授权失败：超级管理员无需手动授权", zap.Uint("roleID", req.RoleID))
 		return fmt.Errorf("超级管理员无需手动授权")
 	}
@@ -290,7 +290,7 @@ func (s *RoleService) Auth(req request.RoleAuthReq) error {
 	}
 
 	// 构建 Casbin 策略：p = sub(roleCode), obj(path), act(method)
-	roleCodeStr := strconv.Itoa(int(role.RoleCode))
+	roleCodeStr := strconv.Itoa(int(role.Code))
 	policies := make([][]string, 0, len(req.Rules))
 	for _, rule := range req.Rules {
 		if rule.Path == "" || rule.Method == "" {
@@ -325,7 +325,7 @@ func (s *RoleService) Auth(req request.RoleAuthReq) error {
 
 	global.Log.Info("角色授权成功",
 		zap.Uint("roleID", req.RoleID),
-		zap.String("roleName", role.RoleName),
+		zap.String("roleName", role.Name),
 		zap.Int("ruleCount", len(req.Rules)),
 	)
 	return nil

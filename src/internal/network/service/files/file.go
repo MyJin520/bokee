@@ -62,7 +62,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 			Url:              existing.Url,
 			Ext:              existing.Ext,
 			Size:             existing.Size,
-			OriginalFileName: existing.OriginalFileName,
+			OriginalName: existing.OriginalName,
 			Hash:             existing.Hash,
 			CreatedAt:        existing.CreatedAt,
 			UpdatedAt:        existing.UpdatedAt,
@@ -92,7 +92,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 		Url:              url,
 		Ext:              ext,
 		Size:             int64(len(data)),
-		OriginalFileName: fileHeader.Filename,
+		OriginalName: fileHeader.Filename,
 		Hash:             hashStr,
 	}
 	if err := global.DB.Create(fileRecord).Error; err != nil {
@@ -104,7 +104,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 		Url:              fileRecord.Url,
 		Ext:              fileRecord.Ext,
 		Size:             fileRecord.Size,
-		OriginalFileName: fileRecord.OriginalFileName,
+		OriginalName: fileRecord.OriginalName,
 		Hash:             fileRecord.Hash,
 		CreatedAt:        fileRecord.CreatedAt,
 		UpdatedAt:        fileRecord.UpdatedAt,

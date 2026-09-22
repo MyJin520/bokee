@@ -50,24 +50,24 @@ func migrateTable() {
 func initRolesAndUser() {
 	// 1. 确保内置角色存在（超级管理员、普通用户）
 	adminRole := basic.Role{
-		RoleName: "超级管理员",
-		RoleCode: uint(global.SuperRoleCode),
-		Sort:     1,
-		Status:   "normal",
-		Remark:   "系统内置超级管理员角色",
+		Name:   "超级管理员",
+		Code:   uint(global.SuperRoleCode),
+		Sort:   1,
+		Status: "normal",
+		Remark: "系统内置超级管理员角色",
 	}
-	if err := global.DB.Where("role_code = ?", adminRole.RoleCode).FirstOrCreate(&adminRole).Error; err != nil {
+	if err := global.DB.Where("code = ?", adminRole.Code).FirstOrCreate(&adminRole).Error; err != nil {
 		panic("初始化超级管理员角色失败: " + err.Error())
 	}
 
 	userRole := basic.Role{
-		RoleName: "普通用户",
-		RoleCode: uint(global.UserRoleCode),
-		Sort:     2,
-		Status:   "normal",
-		Remark:   "注册用户默认角色，拥有账户自助与个人文章管理权限",
+		Name:   "普通用户",
+		Code:   uint(global.UserRoleCode),
+		Sort:   2,
+		Status: "normal",
+		Remark: "注册用户默认角色，拥有账户自助与个人文章管理权限",
 	}
-	if err := global.DB.Where("role_code = ?", userRole.RoleCode).FirstOrCreate(&userRole).Error; err != nil {
+	if err := global.DB.Where("code = ?", userRole.Code).FirstOrCreate(&userRole).Error; err != nil {
 		panic("初始化普通用户角色失败: " + err.Error())
 	}
 

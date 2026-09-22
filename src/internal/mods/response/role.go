@@ -5,8 +5,8 @@ import "time"
 // RoleResp 角色响应结构体
 type RoleResp struct {
 	ID        uint      `json:"id"`
-	RoleName  string    `json:"roleName"`
-	RoleCode  uint      `json:"roleCode"`
+	Name      string    `json:"name"`
+	Code      uint      `json:"code"`
 	Sort      int       `json:"sort"`
 	Status    string    `json:"status"`
 	Remark    string    `json:"remark"`

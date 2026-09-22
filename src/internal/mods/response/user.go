@@ -12,9 +12,9 @@ type JwtResp struct {
 
 // UserRoleResp 用户角色响应结构体（脱敏：仅暴露展示所需字段）
 type UserRoleResp struct {
-	ID       uint   `json:"id"`
-	RoleName string `json:"roleName"`
-	RoleCode uint   `json:"roleCode"`
+	ID   uint   `json:"id"`
+	Name string `json:"name"`
+	Code uint   `json:"code"`
 }
 
 // UserInfoResp 用户信息响应结构体（脱敏：剔除密码等敏感字段）

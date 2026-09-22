@@ -58,9 +58,9 @@ func buildUserInfoResp(user basic.User) response.UserInfoResp {
 	roles := make([]response.UserRoleResp, 0, len(user.Roles))
 	for _, role := range user.Roles {
 		roles = append(roles, response.UserRoleResp{
-			ID:       role.ID,
-			RoleName: role.RoleName,
-			RoleCode: role.RoleCode,
+			ID:   role.ID,
+			Name: role.Name,
+			Code: role.Code,
 		})
 	}
 	return response.UserInfoResp{
@@ -131,7 +131,7 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 
 	// 新用户绑定普通用户默认角色；角色缺失时不阻断注册，仅记录日志
 	var defaultRole basic.Role
-	if err := global.DB.Where("role_code = ?", global.UserRoleCode).First(&defaultRole).Error; err != nil {
+	if err := global.DB.Where("code = ?", global.UserRoleCode).First(&defaultRole).Error; err != nil {
 		global.Log.Error("查询普通用户默认角色失败，新用户将暂无角色", zap.Error(err))
 	} else {
 		user.Roles = []basic.Role{defaultRole}
@@ -183,7 +183,7 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 
 	roleCodes := make([]uint, 0, len(user.Roles))
 	for _, role := range user.Roles {
-		roleCodes = append(roleCodes, role.RoleCode)
+		roleCodes = append(roleCodes, role.Code)
 	}
 
 	token, err := jwtx.GenerateToken(user.ID, user.Name, roleCodes)
@@ -327,7 +327,7 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 
 		isAdmin := false
 		for _, role := range currentUser.Roles {
-			if role.RoleCode == global.SuperRoleCode {
+			if role.Code == global.SuperRoleCode {
 				isAdmin = true
 				break
 			}

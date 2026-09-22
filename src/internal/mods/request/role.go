@@ -2,27 +2,27 @@ package request
 
 // RoleCreateReq 创建角色请求
 type RoleCreateReq struct {
-	RoleName string `json:"roleName" label:"角色名称" validate:"required"`
-	RoleCode uint   `json:"roleCode" label:"角色标识" validate:"required"`
-	Sort     int    `json:"sort"`
-	Status   string `json:"status"`
-	Remark   string `json:"remark"`
+	Name   string `json:"name" label:"角色名称" validate:"required"`
+	Code   uint   `json:"code" label:"角色标识" validate:"required"`
+	Sort   int    `json:"sort"`
+	Status string `json:"status"`
+	Remark string `json:"remark"`
 }
 
 // RoleUpdateReq 更新角色请求
 type RoleUpdateReq struct {
-	ID       uint    `json:"id" label:"角色ID" validate:"required"`
-	RoleName *string `json:"roleName" label:"角色名称"`
-	Sort     *int    `json:"sort" label:"排序"`
-	Status   *string `json:"status" label:"状态"`
-	Remark   *string `json:"remark" label:"备注"`
+	ID     uint    `json:"id" label:"角色ID" validate:"required"`
+	Name   *string `json:"name" label:"角色名称"`
+	Sort   *int    `json:"sort" label:"排序"`
+	Status *string `json:"status" label:"状态"`
+	Remark *string `json:"remark" label:"备注"`
 }
 
 // RoleQueryReq 角色分页查询请求
 type RoleQueryReq struct {
-	RoleName string `json:"roleName"`
-	Status   string `json:"status"`
-	PageReq         // 嵌入分页参数
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	PageReq        // 嵌入分页参数
 }
 
 // RoleAuthItem 单条授权规则
