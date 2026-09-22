@@ -3,12 +3,12 @@ import type { JwtResp, UserInfo } from '@/types'
 
 /** 用户登录 */
 export function login(userName: string, password: string) {
-  return http.post<JwtResp>('/pub/user/login', { userName, password })
+  return http.post<JwtResp>('/pub/user/login', { name: userName, password })
 }
 
 /** 用户注册 */
 export function register(data: {
-  userName: string
+  name: string
   password: string
   phone?: string
   email?: string
@@ -23,7 +23,7 @@ export function getUserInfo() {
 
 /** 更新用户信息（需登录） */
 export function updateUserInfo(data: {
-  userName?: string
+  name?: string
   phone?: string
   email?: string
   avatar?: string

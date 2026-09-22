@@ -93,7 +93,7 @@ async function saveProfile() {
   savingProfile.value = true
   try {
     await updateUserInfo({
-      userName: profileForm.userName.trim(),
+      name: profileForm.userName.trim(),
       email: profileForm.email.trim(),
       phone: profileForm.phone.trim(),
     })
@@ -159,7 +159,7 @@ onMounted(async () => {
       <h1>个人中心</h1>
       <p v-if="userStore.userInfo">
         注册于 {{ formatDate(userStore.userInfo.createdAt) }} ·
-        角色：{{ userStore.userInfo.roles.map((r) => r.roleName).join('、') || '普通用户' }}
+        角色：{{ userStore.userInfo.roles.map((r) => r.name).join('、') || '普通用户' }}
       </p>
     </header>
 

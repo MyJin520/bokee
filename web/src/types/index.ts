@@ -73,8 +73,8 @@ export interface UserInfo {
 
 export interface UserRole {
   id: number
-  roleName: string
-  roleCode: number
+  name: string
+  code: number
 }
 
 /** 文件上传记录 */
@@ -83,7 +83,7 @@ export interface UploadedFile {
   url: string
   ext: string
   size: number
-  originalFileName: string
+  originalName: string
   hash: string
   createdAt: string
   updatedAt: string

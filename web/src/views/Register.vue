@@ -50,7 +50,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await register({
-      userName: form.userName.trim(),
+      name: form.userName.trim(),
       password: form.password,
       email: form.email.trim() || undefined,
       phone: form.phone.trim() || undefined,
