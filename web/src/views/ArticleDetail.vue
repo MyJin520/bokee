@@ -1,6 +1,25 @@
+<script lang="ts">
+import { marked } from 'marked'
+import { markedHighlight } from 'marked-highlight'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github-dark.min.css'
+
+// 配置 marked：注册代码高亮扩展
+// 放在 <script> 中仅在模块加载时执行一次，避免每次组件挂载重复注册导致代码被多次高亮
+marked.use(
+  markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code: string, lang: string) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext'
+      return hljs.highlight(code, { language }).value
+    },
+  }),
+)
+</script>
+
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, watch, onMounted } from 'vue'
+import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
 import { getArticleInfo, deleteArticle } from '@/api/article'
 import { useUserStore } from '@/stores/user'
 import type { ArticleInfo } from '@/types'
@@ -10,7 +29,17 @@ const router = useRouter()
 const userStore = useUserStore()
 
 const article = ref<ArticleInfo | null>(null)
+const renderedContent = ref('')
 const loading = ref(true)
+
+// 当 article 变化时异步解析 Markdown
+watch(article, async (val) => {
+  if (!val?.content) {
+    renderedContent.value = ''
+    return
+  }
+  renderedContent.value = await marked.parse(val.content)
+})
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -23,31 +52,13 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function goToEdit() {
-  if (article.value) {
-    router.push(`/articles/${article.value.id}/edit`)
-  }
-}
-
-async function handleDelete() {
-  if (!article.value) return
-  if (!confirm('确定要删除这篇文章吗？')) return
-
-  try {
-    await deleteArticle(article.value.id)
-    alert('删除成功')
-    router.push('/')
-  } catch (e: unknown) {
-    alert(e instanceof Error ? e.message : '删除失败')
-  }
-}
-
-onMounted(async () => {
-  const id = Number(route.params.id)
+/** 根据 route param 加载文章 */
+async function fetchArticle(id: number) {
   if (!id) {
     router.push('/')
     return
   }
+  loading.value = true
   try {
     article.value = await getArticleInfo(id)
   } catch (e: unknown) {
@@ -56,7 +67,37 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 页面刷新 / 首次进入
+onMounted(() => {
+  fetchArticle(Number(route.params.id))
 })
+
+// 同一组件内切换文章（如从 /article/1 → /article/2）
+onBeforeRouteUpdate((to) => {
+  fetchArticle(Number(to.params.id))
+})
+
+// 跳转到编辑页
+function goToEdit() {
+  if (article.value) {
+    router.push(`/articles/${article.value.id}/edit`)
+  }
+}
+
+// 删除当前文章
+async function handleDelete() {
+  if (!article.value) return
+  if (!confirm('确定要删除这篇文章吗？此操作不可撤销。')) return
+  try {
+    await deleteArticle(article.value.id)
+    alert('删除成功')
+    router.push('/')
+  } catch (e: unknown) {
+    alert(e instanceof Error ? e.message : '删除失败')
+  }
+}
 </script>
 
 <template>
@@ -82,7 +123,7 @@ onMounted(async () => {
         <p>{{ article.summary }}</p>
       </div>
 
-      <div class="detail-content markdown-body" v-html="article.content"></div>
+      <div class="detail-content markdown-body" v-html="renderedContent"></div>
 
       <!-- 操作按钮：仅文章作者可见 -->
       <div
@@ -193,40 +234,70 @@ onMounted(async () => {
 
 .detail-content :deep(h1),
 .detail-content :deep(h2),
-.detail-content :deep(h3) {
+.detail-content :deep(h3),
+.detail-content :deep(h4) {
   margin-top: 1.5em;
   margin-bottom: 0.6em;
   font-weight: 700;
+  color: var(--color-text);
 }
+
+.detail-content :deep(h1) { font-size: 1.75rem; }
+.detail-content :deep(h2) { font-size: 1.45rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.3em; }
+.detail-content :deep(h3) { font-size: 1.2rem; }
+.detail-content :deep(h4) { font-size: 1.05rem; }
 
 .detail-content :deep(p) {
   margin-bottom: 1em;
 }
 
-.detail-content :deep(code) {
-  padding: 2px 6px;
+.detail-content :deep(ul),
+.detail-content :deep(ol) {
+  margin: 0.5em 0 1em 1.5em;
+  line-height: 1.8;
+}
+
+.detail-content :deep(li) {
+  margin-bottom: 0.3em;
+}
+
+/* 行内代码（不在 pre 内）*/
+.detail-content :deep(p code),
+.detail-content :deep(li code),
+.detail-content :deep(h1 code),
+.detail-content :deep(h2 code),
+.detail-content :deep(h3 code),
+.detail-content :deep(h4 code),
+.detail-content :deep(blockquote code) {
+  padding: 2px 7px;
   background: #f0f2f5;
   border-radius: 4px;
   font-size: 0.875em;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  color: #d63384;
+}
+
+/* highlight.js 生成的代码块 - 完全交由 highlight.js CSS 控制 */
+.detail-content :deep(pre code) {
+  all: revert;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
 }
 
 .detail-content :deep(pre) {
-  padding: 16px 20px;
-  background: #282c34;
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  margin: 1em 0;
-}
-
-.detail-content :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: #abb2bf;
+  margin: 1.2em 0;
+  line-height: 1.55;
+  font-size: 0.875rem;
 }
 
 .detail-content :deep(img) {
   border-radius: var(--radius-sm);
   margin: 1em 0;
+  max-width: 100%;
 }
 
 .detail-content :deep(blockquote) {
@@ -235,11 +306,45 @@ onMounted(async () => {
   border-left: 4px solid var(--color-primary);
   background: #f8f9fc;
   color: var(--color-text-light);
+  font-style: italic;
+}
+
+.detail-content :deep(blockquote p) {
+  margin-bottom: 0;
 }
 
 .detail-content :deep(a) {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+.detail-content :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5em 0;
+}
+
+.detail-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.9375rem;
+}
+
+.detail-content :deep(th),
+.detail-content :deep(td) {
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.detail-content :deep(th) {
+  background: #f8f9fc;
+  font-weight: 700;
+}
+
+.detail-content :deep(strong) {
+  font-weight: 700;
 }
 
 .detail-actions {

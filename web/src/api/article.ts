@@ -9,7 +9,7 @@ export function getArticleList(params: {
   page?: number
   pageSize?: number
 }) {
-  return http.post<PageData<ArticleListItem[]>>('/pub/article/list', params)
+  return http.post<PageData<ArticleListItem>>('/pub/article/list', params)
 }
 
 /** 获取文章详情 */
@@ -19,7 +19,7 @@ export function getArticleInfo(id: number) {
 
 /** 获取指定用户的文章列表 */
 export function getUserArticleList(userId: number, page = 1, pageSize = 10) {
-  return http.post<PageData<ArticleListItem[]>>('/pub/article/list_by_user', {
+  return http.post<PageData<ArticleListItem>>('/pub/article/list_by_user', {
     userId,
     page,
     pageSize,
