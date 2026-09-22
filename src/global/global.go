@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	SuperRoleCode = 888
+	SuperRoleCode = 1
 	// UserRoleCode 注册用户默认角色（普通用户）标识，仅拥有账户自助与个人文章管理权限
 	UserRoleCode = 2
 )
