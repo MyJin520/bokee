@@ -1,0 +1,610 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700&display=swap');
+
+/* ============ 设计令牌（与 bokeeUI 原型一致的纸质杂志风格） ============ */
+:root {
+  --ink: #18221f;
+  --muted: #74807c;
+  --paper: #f4f1ea;
+  --surface: #fbfaf7;
+  --line: #dce1dc;
+  --coral: #e76f51;
+  --coral-dark: #c9583c;
+  --coral-tint: #f9e6df;
+  --lime: #c7d96e;
+  --lime-dark: #425021;
+  --blue: #8fb4bd;
+  --mint: #dbe6e4;
+  --shadow: 0 18px 45px rgba(29, 39, 34, 0.09);
+  --shadow-sm: 0 4px 14px rgba(29, 39, 34, 0.06);
+  --max: 1220px;
+
+  --color-white: var(--surface);
+  --color-bg: var(--paper);
+  --color-text: var(--ink);
+  --color-text-light: var(--muted);
+  --color-border: var(--line);
+  --color-primary: var(--coral);
+  --color-primary-hover: var(--coral-dark);
+  --color-danger: #b94e4e;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--paper);
+  font-family: 'DM Sans', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+}
+
+/* ============ 通用排版 ============ */
+.serif {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+.mono {
+  font-family: 'DM Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+.eyebrow,
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--coral-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: '';
+  width: 29px;
+  height: 2px;
+  background: var(--coral);
+}
+
+.section-kicker,
+.side-title {
+  margin: 0 0 5px;
+  color: var(--coral-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.side-title {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
+/* ============ 按钮 ============ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 18px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--coral);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-coral {
+  background: var(--coral);
+}
+
+.btn-coral:hover:not(:disabled) {
+  background: var(--coral-dark);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--ink);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.btn-ghost {
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: transparent;
+  color: var(--ink);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-sm {
+  padding: 8px 13px;
+  font-size: 11px;
+}
+
+.text-button {
+  padding: 0;
+  background: transparent;
+  color: var(--coral-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.text-button:hover {
+  color: var(--ink);
+}
+
+/* ============ 表单（下划线风格，与原型一致） ============ */
+.field-label {
+  display: block;
+  margin: 16px 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field-label:first-child {
+  margin-top: 0;
+}
+
+.field-label .required {
+  color: var(--coral-dark);
+}
+
+.field-input,
+.field-area {
+  width: 100%;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  border-radius: 0;
+}
+
+.field-area {
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.field-input:focus,
+.field-area:focus {
+  border-color: var(--coral);
+}
+
+.field-input::placeholder,
+.field-area::placeholder {
+  color: #a9b3ae;
+}
+
+.form-error {
+  margin: 14px 0 0;
+  color: var(--coral-dark);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.form-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ============ 标签 / 筛选 ============ */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  padding: 5px 8px;
+  background: var(--lime);
+  color: var(--lime-dark);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tag-coral {
+  background: var(--coral-tint);
+  color: var(--coral-dark);
+}
+
+.chip {
+  flex: 0 0 auto;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.chip:hover,
+.chip.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+/* ============ 卡片 / 状态 ============ */
+.surface-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.state-block {
+  padding: 70px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.state-block .state-title {
+  margin: 16px 0 8px;
+  color: var(--ink);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+}
+
+.state-block p {
+  margin: 6px 0;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--coral);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============ 分页 ============ */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 26px 0 10px;
+}
+
+.page-btn {
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: var(--muted);
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ============ Toast ============ */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast-item {
+  padding: 11px 18px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+  animation: toast-in 0.25s ease;
+}
+
+.toast-item.toast-error {
+  background: var(--coral-dark);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============ 模态框 ============ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(24, 34, 31, 0.46);
+}
+
+.modal-panel {
+  width: min(100%, 400px);
+  padding: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: modal-in 0.2s ease;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.modal-text {
+  margin: 10px 0 22px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ============ Markdown 正文（编辑风格） ============ */
+.markdown-body {
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 1.6em 0 0.6em;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.markdown-body h1 {
+  font-size: 1.7rem;
+}
+
+.markdown-body h2 {
+  font-size: 1.4rem;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--line);
+}
+
+.markdown-body h3 {
+  font-size: 1.18rem;
+}
+
+.markdown-body h4 {
+  font-size: 1.02rem;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.markdown-body p {
+  margin: 0 0 1em;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.5em 0 1em 1.4em;
+  padding: 0;
+}
+
+.markdown-body li {
+  margin-bottom: 0.35em;
+}
+
+.markdown-body a {
+  color: var(--coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-body blockquote {
+  margin: 1.2em 0;
+  padding: 10px 20px;
+  border-left: 3px solid var(--coral);
+  background: var(--surface);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.markdown-body blockquote p {
+  margin-bottom: 0;
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 1.8em 0;
+}
+
+.markdown-body img {
+  margin: 1em 0;
+  border: 1px solid var(--line);
+}
+
+.markdown-body table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--surface);
+  font-weight: 700;
+}
+
+.markdown-body strong {
+  font-weight: 700;
+}
+
+.markdown-body p code,
+.markdown-body li code,
+.markdown-body h1 code,
+.markdown-body h2 code,
+.markdown-body h3 code,
+.markdown-body h4 code,
+.markdown-body blockquote code {
+  padding: 2px 7px;
+  background: var(--coral-tint);
+  border-radius: 0;
+  font-size: 0.86em;
+  font-family: 'DM Mono', ui-monospace, Consolas, monospace;
+  color: var(--coral-dark);
+}
+
+.markdown-body pre {
+  margin: 1.2em 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+@media (max-width: 600px) {
+  .markdown-body {
+    font-size: 14px;
+  }
+}
