@@ -2,107 +2,102 @@
 import { onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import AppHeader from '@/components/AppHeader.vue'
+import AppToast from '@/components/AppToast.vue'
+import AppConfirm from '@/components/AppConfirm.vue'
 
 const userStore = useUserStore()
-
 onMounted(() => {
-  // 页面刷新时尝试恢复登录态
   userStore.restoreSession()
 })
 </script>
 
 <template>
-  <div class="app-container">
+  <div class="app-shell">
     <AppHeader />
     <main class="main-content">
       <router-view />
     </main>
     <footer class="app-footer">
-      <p>© 2026 My Blog. All rights reserved.</p>
+      <div class="footer-inner">
+        <span>© 2026 BOKEE · 写给愿意慢下来的人</span>
+        <div class="footer-links">
+          <a href="#rss">RSS</a>
+          <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="mailto:hello@bokee.local">联系我</a>
+        </div>
+      </div>
     </footer>
+    <AppToast />
+    <AppConfirm />
   </div>
 </template>
 
 <style>
-/* ===== 全局重置 ===== */
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-:root {
-  --color-primary: #4a90d9;
-  --color-primary-hover: #357abd;
-  --color-bg: #f5f7fa;
-  --color-white: #ffffff;
-  --color-text: #2c3e50;
-  --color-text-light: #6b7a8d;
-  --color-border: #e8ecf1;
-  --color-danger: #e74c3c;
-  --color-success: #27ae60;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  -webkit-font-smoothing: antialiased;
-}
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-a:hover {
-  color: var(--color-primary-hover);
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-button {
-  cursor: pointer;
-  border: none;
-  font-family: inherit;
-  font-size: inherit;
-}
-</style>
-
-<style scoped>
-.app-container {
+.app-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 .main-content {
-  flex: 1;
   width: 100%;
-  max-width: 960px;
+  max-width: var(--max);
+  flex: 1;
   margin: 0 auto;
-  padding: 28px 20px;
+  padding: 0 28px;
 }
 
 .app-footer {
-  text-align: center;
-  padding: 24px 20px;
-  color: var(--color-text-light);
-  font-size: 0.875rem;
-  border-top: 1px solid var(--color-border);
-  margin-top: 40px;
+  width: 100%;
+  max-width: var(--max);
+  margin: auto auto 0;
+  padding: 26px 28px 34px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 23px;
+  border-top: 1px solid var(--line);
+}
+
+.footer-links {
+  display: flex;
+  gap: 17px;
+}
+
+.footer-links a:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 880px) {
+  .main-content {
+    padding: 0 20px;
+  }
+
+  .app-footer {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-content {
+    padding: 0 16px;
+  }
+
+  .app-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .footer-inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

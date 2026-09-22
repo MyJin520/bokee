@@ -35,3 +35,8 @@ export function updateUserInfo(data: {
 export function logout() {
   return http.get<string>('/pri/user/logout')
 }
+
+/** 修改密码（需登录，普通用户需提供旧密码） */
+export function changePassword(data: { oldPassword: string; newPassword: string }) {
+  return http.post<string>('/pri/user/forget_password', data)
+}

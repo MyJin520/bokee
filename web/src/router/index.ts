@@ -10,6 +10,11 @@ const router = createRouter({
       component: Home,
     },
     {
+      path: '/articles',
+      name: 'articles',
+      component: () => import('@/views/Articles.vue'),
+    },
+    {
       path: '/article/:id',
       name: 'article-detail',
       component: () => import('@/views/ArticleDetail.vue'),
@@ -42,17 +47,32 @@ const router = createRouter({
       component: () => import('@/views/MyArticles.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('@/views/Profile.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFound.vue'),
+    },
   ],
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, behavior: 'smooth', top: 90 }
+    return { top: 0 }
+  },
 })
 
 // 路由守卫：需登录页面跳转到登录页
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem('token')
   if (to.meta.requiresAuth && !token) {
-    next({ name: 'login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+    return { name: 'login', query: { redirect: to.fullPath } }
   }
+  return true
 })
 
 export default router

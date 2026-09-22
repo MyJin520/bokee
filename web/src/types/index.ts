@@ -76,3 +76,15 @@ export interface UserRole {
   roleName: string
   roleCode: number
 }
+
+/** 文件上传记录 */
+export interface UploadedFile {
+  id: number
+  url: string
+  ext: string
+  size: number
+  originalFileName: string
+  hash: string
+  createdAt: string
+  updatedAt: string
+}
