@@ -122,7 +122,7 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 	}
 
 	user := &basic.User{
-		Name:     req.Username,
+		Name:     req.Name,
 		Password: hashedPwd,
 		Phone:    req.Phone,
 		Email:    req.Email,
@@ -147,39 +147,39 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 // Login 用户登录：内置登录防爆破（失败计数 + 锁定），Redis 异常放行不影响正常登录
 func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*response.JwtResp, error) {
 	// 登录防爆破：先检查是否已被锁定（Redis 异常放行）
-	if remain, locked := loginLimiter.IsLocked(ctx, req.Username); locked {
-		global.Log.Warn("登录失败：账号已被锁定", zap.String("username", req.Username))
+	if remain, locked := loginLimiter.IsLocked(ctx, req.Name); locked {
+		global.Log.Warn("登录失败：账号已被锁定", zap.String("username", req.Name))
 		return nil, fmt.Errorf("尝试次数过多，请%d分钟后再试", int(remain.Minutes())+1)
 	}
 
 	var user basic.User
 	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").Preload("Roles").
-		Where("name = ?", req.Username).
+		Where("name = ?", req.Name).
 		First(&user).Error
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			global.Log.Warn("登录失败：用户名不存在", zap.String("username", req.Username))
-			loginLimiter.RecordFail(ctx, req.Username)
+			global.Log.Warn("登录失败：用户名不存在", zap.String("username", req.Name))
+			loginLimiter.RecordFail(ctx, req.Name)
 			return nil, fmt.Errorf("用户名或密码错误")
 		}
-		global.Log.Error("登录数据库查询失败", zap.Error(err), zap.String("username", req.Username))
+		global.Log.Error("登录数据库查询失败", zap.Error(err), zap.String("username", req.Name))
 		return nil, fmt.Errorf("系统繁忙，请稍后重试")
 	}
 
 	if user.Status != "normal" {
-		global.Log.Warn("账号已被禁用", zap.String("username", req.Username))
+		global.Log.Warn("账号已被禁用", zap.String("username", req.Name))
 		return nil, fmt.Errorf("账号已被禁用，请联系管理员")
 	}
 
 	if err := hash.CompareHashAndPassword(user.Password, req.Password); err != nil {
-		global.Log.Warn("密码校验失败", zap.String("username", req.Username))
-		loginLimiter.RecordFail(ctx, req.Username)
+		global.Log.Warn("密码校验失败", zap.String("username", req.Name))
+		loginLimiter.RecordFail(ctx, req.Name)
 		return nil, fmt.Errorf("用户名或密码错误")
 	}
 
 	// 登录成功：清除失败计数与锁定标记
-	loginLimiter.Clear(ctx, req.Username)
+	loginLimiter.Clear(ctx, req.Name)
 
 	roleCodes := make([]uint, 0, len(user.Roles))
 	for _, role := range user.Roles {
@@ -295,7 +295,7 @@ func (s *UserService) Logout(ctx context.Context, tokenString string) error {
 
 	global.Log.Info("用户登出成功",
 		zap.Uint("userID", claims.UserID),
-		zap.String("username", claims.Username),
+		zap.String("username", claims.UserName),
 		zap.Duration("blacklist_ttl", remaining),
 	)
 	return nil
