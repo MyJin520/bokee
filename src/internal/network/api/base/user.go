@@ -142,7 +142,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 		ok     bool
 	)
 
-	userIDStr := c.Query("user_id")
+	userIDStr := c.Query("userId")
 	if userIDStr != "" {
 		parsed, parseErr := strconv.ParseUint(userIDStr, 10, 32)
 		if parseErr != nil {
