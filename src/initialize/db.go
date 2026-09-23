@@ -8,7 +8,6 @@ import (
 	db "bokee/pkg/gormx"
 	"bokee/pkg/randx"
 	"fmt"
-	"go.uber.org/zap"
 )
 
 func initDb(cfg *config.Config) {
@@ -98,28 +97,4 @@ func initRolesAndUser() {
 	}
 
 	global.Log.Info("用户表非空，跳过超级管理员初始化")
-	backfillDefaultUserRole(userRole)
-}
-
-// backfillDefaultUserRole 为历史上没有任何角色的用户补授普通用户角色（注册逻辑上线前创建的账号）
-func backfillDefaultUserRole(userRole basic.Role) {
-	var users []basic.User
-	if err := global.DB.Preload("Roles").Find(&users).Error; err != nil {
-		global.Log.Warn(fmt.Sprintf("回填默认角色查询用户失败: %v", err))
-		return
-	}
-	backfilled := 0
-	for _, user := range users {
-		if len(user.Roles) > 0 {
-			continue
-		}
-		if err := global.DB.Model(&user).Association("Roles").Append(&userRole); err != nil {
-			global.Log.Error("回填普通用户角色失败", zap.Uint("userID", user.ID), zap.Error(err))
-			continue
-		}
-		backfilled++
-	}
-	if backfilled > 0 {
-		global.Log.Info(fmt.Sprintf("已为 %d 个无角色用户补授普通用户角色", backfilled))
-	}
 }
