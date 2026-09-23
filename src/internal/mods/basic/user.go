@@ -8,6 +8,5 @@ type User struct {
 	Email    string `gorm:"size:64;comment:邮箱"`
 	Status   string `gorm:"size:10;not null;default:normal;comment:账号状态"`
 	Avatar   string `gorm:"size:255;comment:头像地址"`
-
-	Roles []Role `gorm:"many2many:sys_user_roles;constraint:OnDelete:CASCADE"`
+	Roles    []Role `gorm:"many2many:sys_user_roles;constraint:OnDelete:CASCADE"`
 }
