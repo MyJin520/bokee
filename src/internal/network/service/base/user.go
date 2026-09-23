@@ -225,7 +225,7 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 	// 手机号/邮箱唯一性校验：仅当本次更新携带非空手机号或邮箱时执行，排除自身
 	if checkPhone != "" || checkEmail != "" {
 		var duplicateCount int64
-		err := userContactQuery(global.DB.Model(&basic.User{}).Where("id <> ?", uid), checkPhone, checkEmail).
+		err := userContactQuery(global.DB.Model(&basic.User{}).Where("id != ?", uid), checkPhone, checkEmail).
 			Count(&duplicateCount).Error
 		if err != nil {
 			global.Log.Error("更新用户唯一性校验失败", zap.Error(err), zap.Uint("userID", uid))
