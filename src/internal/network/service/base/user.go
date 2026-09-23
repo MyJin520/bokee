@@ -1,7 +1,6 @@
 package base
 
 import (
-	"bokee/pkg/commons"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/articles"
+	"bokee/pkg/commons"
 	"bokee/pkg/cryptox/hash"
 	"bokee/pkg/jwtx"
 	"bokee/pkg/limitx"
@@ -57,11 +57,7 @@ func deleteUserInfoCache(ctx context.Context, ids ...uint) {
 func buildUserInfoResp(user basic.User) response.UserInfoResp {
 	roles := make([]response.UserRoleResp, 0, len(user.Roles))
 	for _, role := range user.Roles {
-		roles = append(roles, response.UserRoleResp{
-			ID:   role.ID,
-			Name: role.Name,
-			Code: role.Code,
-		})
+		roles = append(roles, response.UserRoleResp{ID: role.ID, Name: role.Name, Code: role.Code})
 	}
 	return response.UserInfoResp{
 		ID:        user.ID,
@@ -76,42 +72,55 @@ func buildUserInfoResp(user basic.User) response.UserInfoResp {
 	}
 }
 
+// userContactQuery 根据手机号/邮箱构造用户联系方式查询条件
+func userContactQuery(db *gorm.DB, phone, email string) *gorm.DB {
+	switch {
+	case phone != "" && email != "":
+		return db.Where("phone = ? OR email = ?", phone, email)
+	case phone != "":
+		return db.Where("phone = ?", phone)
+	case email != "":
+		return db.Where("email = ?", email)
+	default:
+		return db
+	}
+}
+
+// hasRole 判断用户是否拥有指定角色
+func hasRole(user basic.User, roleCode uint) bool {
+	for _, role := range user.Roles {
+		if role.Code == roleCode {
+			return true
+		}
+	}
+	return false
+}
+
 // Create 用户注册：内置注册防刷（同一手机号/邮箱窗口内仅允许尝试一次），Redis 异常放行不影响注册
 func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) error {
-	// 注册防刷：SetNX 成功才继续，失败说明窗口内已尝试过（Redis 异常放行）；
-	// 未填手机号时以邮箱作为限流维度，避免空手机号共享同一个限流键
+	// 注册防刷：未填手机号时以邮箱作为限流维度，避免空手机号共享同一个限流键
 	limitIdentity := req.Phone
 	if limitIdentity == "" {
 		limitIdentity = req.Email
 	}
-	if ok, err := redisx.SetNX(ctx, userRegisterKey(limitIdentity), "1", 1*time.Minute); err != nil {
+	if ok, err := redisx.SetNX(ctx, userRegisterKey(limitIdentity), "1", time.Minute); err != nil {
 		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("identity", limitIdentity))
 	} else if !ok {
 		global.Log.Warn("注册过于频繁", zap.String("identity", limitIdentity))
 		return fmt.Errorf("注册过于频繁，请稍后再试")
 	}
 
-	// 唯一性校验：空值不参与匹配（手机号/邮箱为选填，空字符串不能作为已注册依据）；
-	// 两者都为空时跳过校验
+	// 唯一性校验：空值不参与匹配
 	if req.Phone != "" || req.Email != "" {
-		duplicateQuery := global.DB.Model(&basic.User{})
-		switch {
-		case req.Phone != "" && req.Email != "":
-			duplicateQuery = duplicateQuery.Where("phone = ? OR email = ?", req.Phone, req.Email)
-		case req.Phone != "":
-			duplicateQuery = duplicateQuery.Where("phone = ?", req.Phone)
-		case req.Email != "":
-			duplicateQuery = duplicateQuery.Where("email = ?", req.Email)
-		}
 		var count int64
-		if err := duplicateQuery.Count(&count).Error; err != nil {
+		err := userContactQuery(global.DB.Model(&basic.User{}), req.Phone, req.Email).Count(&count).Error
+		if err != nil {
 			global.Log.Error("注册唯一性校验失败", zap.Error(err))
 			return fmt.Errorf("注册失败，请稍后重试")
 		}
 		if count > 0 {
-			global.Log.Warn("注册失败：手机号或邮箱已被注册",
-				zap.String("phone", req.Phone), zap.String("email", req.Email))
-			return fmt.Errorf("注册失败>手机号或邮箱已被注册")
+			global.Log.Warn("注册失败：手机号或邮箱已被注册", zap.String("phone", req.Phone), zap.String("email", req.Email))
+			return fmt.Errorf("注册失败：手机号或邮箱已被注册")
 		}
 	}
 
@@ -146,7 +155,6 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 
 // Login 用户登录：内置登录防爆破（失败计数 + 锁定），Redis 异常放行不影响正常登录
 func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*response.JwtResp, error) {
-	// 登录防爆破：先检查是否已被锁定（Redis 异常放行）
 	if remain, locked := loginLimiter.IsLocked(ctx, req.Name); locked {
 		global.Log.Warn("登录失败：账号已被锁定", zap.String("username", req.Name))
 		return nil, fmt.Errorf("尝试次数过多，请%d分钟后再试", int(remain.Minutes())+1)
@@ -154,9 +162,7 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 
 	var user basic.User
 	err := global.DB.Select("id", "password", "name", "status", "avatar", "email", "phone").Preload("Roles").
-		Where("name = ?", req.Name).
-		First(&user).Error
-
+		Where("name = ?", req.Name).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			global.Log.Warn("登录失败：用户名不存在", zap.String("username", req.Name))
@@ -171,14 +177,12 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 		global.Log.Warn("账号已被禁用", zap.String("username", req.Name))
 		return nil, fmt.Errorf("账号已被禁用，请联系管理员")
 	}
-
 	if err := hash.CompareHashAndPassword(user.Password, req.Password); err != nil {
 		global.Log.Warn("密码校验失败", zap.String("username", req.Name))
 		loginLimiter.RecordFail(ctx, req.Name)
 		return nil, fmt.Errorf("用户名或密码错误")
 	}
 
-	// 登录成功：清除失败计数与锁定标记
 	loginLimiter.Clear(ctx, req.Name)
 
 	roleCodes := make([]uint, 0, len(user.Roles))
@@ -192,52 +196,38 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 		return nil, fmt.Errorf("登录失败，请稍后重试")
 	}
 
-	jwtResponse := &response.JwtResp{
+	return &response.JwtResp{
 		Token:  token,
 		Name:   user.Name,
 		Avatar: user.Avatar,
 		Email:  user.Email,
 		Phone:  user.Phone,
-	}
-	return jwtResponse, nil
+	}, nil
 }
 
 // Update 更新当前用户资料，落库成功后失效用户信息缓存
 func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid uint) error {
-	// 使用公共更新方法构建更新 map
 	updates := commons.StructToUpdateMap(req)
-
 	if len(updates) == 0 {
 		global.Log.Warn("更新用户失败：没有需要更新的字段", zap.Uint("userID", uid))
 		return fmt.Errorf("没有需要更新的字段")
 	}
 
-	// 手机号/邮箱唯一性校验：仅当本次更新携带非空手机号或邮箱时执行（空值不参与匹配，排除自身）
-	var (
-		checkPhone string
-		checkEmail string
-		hasContact bool
-	)
-	if req.Phone != nil && *req.Phone != "" {
+	checkPhone := ""
+	checkEmail := ""
+	if req.Phone != nil {
 		checkPhone = *req.Phone
-		hasContact = true
 	}
-	if req.Email != nil && *req.Email != "" {
+	if req.Email != nil {
 		checkEmail = *req.Email
-		hasContact = true
 	}
-	if hasContact {
-		duplicateQuery := global.DB.Model(&basic.User{}).Where("id <> ?", uid)
-		switch {
-		case checkPhone != "" && checkEmail != "":
-			duplicateQuery = duplicateQuery.Where("phone = ? OR email = ?", checkPhone, checkEmail)
-		case checkPhone != "":
-			duplicateQuery = duplicateQuery.Where("phone = ?", checkPhone)
-		default:
-			duplicateQuery = duplicateQuery.Where("email = ?", checkEmail)
-		}
+
+	// 手机号/邮箱唯一性校验：仅当本次更新携带非空手机号或邮箱时执行，排除自身
+	if checkPhone != "" || checkEmail != "" {
 		var duplicateCount int64
-		if err := duplicateQuery.Count(&duplicateCount).Error; err != nil {
+		err := userContactQuery(global.DB.Model(&basic.User{}).Where("id <> ?", uid), checkPhone, checkEmail).
+			Count(&duplicateCount).Error
+		if err != nil {
 			global.Log.Error("更新用户唯一性校验失败", zap.Error(err), zap.Uint("userID", uid))
 			return fmt.Errorf("更新用户失败，请稍后重试")
 		}
@@ -248,8 +238,6 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 	}
 
 	// TODO: 更新邮箱前需验证邮箱验证码
-	// updates map 中已包含 email 字段，后续增加验证逻辑后在此拦截
-
 	result := global.DB.Model(&basic.User{}).Where("id = ?", uid).Updates(updates)
 	if result.Error != nil {
 		global.Log.Error("更新用户失败", zap.Error(result.Error), zap.Uint("userID", uid))
@@ -260,34 +248,30 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 		return fmt.Errorf("用户不存在或未做任何更改")
 	}
 
-	// 落库成功后失效缓存
 	deleteUserInfoCache(ctx, uid)
 
-	// 若姓名或头像变更，同步失效该用户所有文章详情缓存，保证文章页作者信息及时更新
-	if _, hasName := updates["user_name"]; hasName {
-		articleService.DeleteArticleInfoCacheByUser(ctx, uid)
-	} else if _, hasAvatar := updates["avatar"]; hasAvatar {
+	_, nameChanged := updates["user_name"]
+	_, avatarChanged := updates["avatar"]
+	if nameChanged || avatarChanged {
 		articleService.DeleteArticleInfoCacheByUser(ctx, uid)
 	}
 	return nil
 }
 
-// Logout 用户登出：将当前 token 加入 Redis 黑名单（token 由 API 层从请求头提取后传入，不依赖 gin）
+// Logout 用户登出：将当前 token 加入 Redis 黑名单
+// token 由 API 层从请求头提取后传入，不依赖 gin
 func (s *UserService) Logout(ctx context.Context, tokenString string) error {
-	// 解析 token 获取过期时间
 	claims, err := jwtx.ParseToken(tokenString)
 	if err != nil {
 		global.Log.Error("登出失败：无效的认证令牌", zap.Error(err))
 		return fmt.Errorf("无效的认证令牌")
 	}
 
-	// 计算 token 剩余有效期，作为黑名单 TTL
 	remaining := time.Until(claims.ExpiresAt.Time)
 	if remaining <= 0 {
-		return nil // token 已过期，无需处理
+		return nil
 	}
 
-	// 写入 Redis 黑名单
 	if err := redisx.BlacklistToken(ctx, tokenString, remaining); err != nil {
 		global.Log.Error("登出写入 Redis 黑名单失败", zap.Error(err))
 		return fmt.Errorf("登出失败，请稍后重试")
@@ -303,17 +287,14 @@ func (s *UserService) Logout(ctx context.Context, tokenString string) error {
 
 // ForgetPassword 重置密码：内置防爆破（非管理员旧密码错误计数 + 锁定），Redis 异常放行不影响主流程
 func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPasswordReq, currentUserID uint) error {
-	// 重置密码防爆破：先检查当前操作者是否已被锁定（Redis 异常放行）
 	operatorID := fmt.Sprintf("%d", currentUserID)
 	if remain, locked := resetLimiter.IsLocked(ctx, operatorID); locked {
 		global.Log.Warn("重置密码失败：操作已被锁定", zap.Uint("userID", currentUserID))
 		return fmt.Errorf("尝试次数过多，请%d分钟后再试", int(remain.Minutes())+1)
 	}
 
-	// 目标用户 ID（事务内确定，成功后用于失效缓存）
 	var targetUserID uint
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
-		// 查询当前操作用户并判断是否为管理员
 		var currentUser basic.User
 		err := tx.Where("id = ?", currentUserID).Preload("Roles").First(&currentUser).Error
 		if err != nil {
@@ -325,30 +306,17 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 			return fmt.Errorf("查询用户失败，请稍后重试")
 		}
 
-		isAdmin := false
-		for _, role := range currentUser.Roles {
-			if role.Code == global.SuperRoleCode {
-				isAdmin = true
-				break
-			}
+		isAdmin := hasRole(currentUser, global.SuperRoleCode)
+		targetUserID = currentUserID
+		if isAdmin && req.SpecifyUserID != 0 {
+			targetUserID = req.SpecifyUserID
 		}
 
-		// 确定目标用户 ID
-		if isAdmin {
-			if req.SpecifyUserID != 0 {
-				targetUserID = req.SpecifyUserID
-			} else {
-				targetUserID = currentUserID
-			}
-		} else {
-			if req.SpecifyUserID != 0 && req.SpecifyUserID != currentUserID {
-				global.Log.Warn("重置密码失败：非管理员不能修改其他用户的密码", zap.Uint("userID", currentUserID))
-				return fmt.Errorf("非管理员不能修改其他用户的密码")
-			}
-			targetUserID = currentUserID
+		if !isAdmin && req.SpecifyUserID != 0 && req.SpecifyUserID != currentUserID {
+			global.Log.Warn("重置密码失败：非管理员不能修改其他用户的密码", zap.Uint("userID", currentUserID))
+			return fmt.Errorf("非管理员不能修改其他用户的密码")
 		}
 
-		// 非管理员校验旧密码（currentUser 已包含 password，无需二次查询）
 		if !isAdmin {
 			if err := hash.CompareHashAndPassword(currentUser.Password, req.OldPassword); err != nil {
 				global.Log.Warn("重置密码失败：旧密码错误", zap.Uint("userID", currentUserID))
@@ -357,7 +325,6 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 			}
 		}
 
-		// 管理员跨用户操作时，确认目标用户存在（轻量 Count 代替全量查询）
 		if isAdmin && targetUserID != currentUserID {
 			var exists int64
 			if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Count(&exists).Error; err != nil {
@@ -370,14 +337,12 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 			}
 		}
 
-		// 加密新密码
 		newPassword, err := hash.GeneratePassword(req.NewPassword)
 		if err != nil {
 			global.Log.Error("密码加密失败", zap.Error(err))
 			return fmt.Errorf("密码加密失败，请稍后重试")
 		}
 
-		// 更新密码
 		if err := tx.Model(&basic.User{}).Where("id = ?", targetUserID).Update("password", newPassword).Error; err != nil {
 			global.Log.Error("更新密码失败", zap.Error(err), zap.Uint("targetUserID", targetUserID))
 			return fmt.Errorf("修改密码失败，请稍后重试")
@@ -386,14 +351,14 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 		global.Log.Info("密码修改成功",
 			zap.Uint("operatorID", currentUserID),
 			zap.Uint("targetUserID", targetUserID),
-			zap.Bool("isAdmin", isAdmin))
+			zap.Bool("isAdmin", isAdmin),
+		)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	// 重置成功后清除失败计数与锁定标记，并失效目标用户信息缓存
 	resetLimiter.Clear(ctx, operatorID)
 	deleteUserInfoCache(ctx, targetUserID)
 	return nil
@@ -402,7 +367,6 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBindReq) (string, error) {
 	var msg string
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
-		// 1. 查询用户
 		var user basic.User
 		if err := tx.First(&user, req.UserID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -412,21 +376,16 @@ func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBind
 			return fmt.Errorf("查询用户失败，请稍后重试")
 		}
 
-		// 2. 查询角色
 		var roles []basic.Role
 		if err := tx.Where("id IN ?", req.RoleIDs).Find(&roles).Error; err != nil {
 			global.Log.Error("查询角色失败", zap.Error(err), zap.Any("roleIDs", req.RoleIDs))
 			return fmt.Errorf("查询角色失败，请稍后重试")
 		}
-
-		// 确保传入的角色全部存在
 		if len(roles) != len(req.RoleIDs) {
 			return fmt.Errorf("部分角色不存在，请检查角色ID")
 		}
 
-		// 3. 执行 many-to-many 操作
 		association := tx.Model(&user).Association("Roles")
-
 		switch req.Operate {
 		case "bind":
 			if err := association.Append(&roles); err != nil {
@@ -434,25 +393,22 @@ func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBind
 				return fmt.Errorf("角色绑定失败，请稍后重试")
 			}
 			msg = "角色绑定操作成功"
-
 		case "unbind":
 			if err := association.Delete(&roles); err != nil {
 				global.Log.Error("角色解绑失败", zap.Error(err), zap.Uint("userID", req.UserID), zap.Any("roleIDs", req.RoleIDs))
 				return fmt.Errorf("角色解绑失败，请稍后重试")
 			}
 			msg = "角色解绑操作成功"
+		default:
+			return fmt.Errorf("不支持的角色操作：%s", req.Operate)
 		}
-
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}
 
-	// 角色发生操作后清除用户缓存
 	deleteUserInfoCache(ctx, req.UserID)
-
 	return msg, nil
 }
 
@@ -474,22 +430,20 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 	}
 
 	var total int64
-	err := query.Count(&total).Error
-	if err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		global.Log.Error("统计用户总数失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
 	var modelUsers []basic.User
-	err = query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&modelUsers).Error
-	if err != nil {
+	if err := query.Offset(req.Offset()).Limit(req.PageSize).Preload("Roles").Find(&modelUsers).Error; err != nil {
 		global.Log.Error("查询用户列表失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
 	users := make([]response.UserInfoResp, 0, len(modelUsers))
-	for _, u := range modelUsers {
-		users = append(users, buildUserInfoResp(u))
+	for _, user := range modelUsers {
+		users = append(users, buildUserInfoResp(user))
 	}
 	return users, total, nil
 }
