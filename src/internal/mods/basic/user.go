@@ -4,8 +4,8 @@ type User struct {
 	BaseModel
 	Name     string `gorm:"size:10;not null;index;comment:用户名"`
 	Password string `gorm:"size:64;not null;comment:密码"`
-	Phone    string `gorm:"size:11;comment:手机号（选填，唯一性由业务层校验）"`
-	Email    string `gorm:"size:64;comment:邮箱（选填，唯一性由业务层校验）"`
+	Phone    string `gorm:"size:11;comment:手机号"`
+	Email    string `gorm:"size:64;comment:邮箱"`
 	Status   string `gorm:"size:10;not null;default:normal;comment:账号状态"`
 	Avatar   string `gorm:"size:255;comment:头像地址"`
 

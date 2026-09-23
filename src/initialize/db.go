@@ -32,19 +32,6 @@ func migrateTable() {
 	if err != nil {
 		panic("数据库迁移失败: " + err.Error())
 	}
-
-	// 历史遗留：手机号/邮箱为选填字段，旧表却带有 NOT NULL 唯一索引，
-	// 多个未填手机号的用户会因空字符串冲突而无法注册；AutoMigrate 不会自动删除索引，这里显式移除。
-	// 非空手机号/邮箱的唯一性由业务层校验保证。
-	for _, indexName := range []string{"idx_users_phone", "idx_users_email"} {
-		if global.DB.Migrator().HasIndex(&basic.User{}, indexName) {
-			if err := global.DB.Migrator().DropIndex(&basic.User{}, indexName); err != nil {
-				global.Log.Error(fmt.Sprintf("移除遗留唯一索引 %s 失败: %v", indexName, err))
-			} else {
-				global.Log.Info(fmt.Sprintf("已移除遗留唯一索引 %s", indexName))
-			}
-		}
-	}
 }
 
 // 初始化内置角色与超级管理员：每次启动都会确保内置角色存在，并为历史无角色用户补授普通用户角色
