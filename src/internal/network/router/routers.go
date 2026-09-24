@@ -24,6 +24,7 @@ func Routers() *gin.Engine {
 
 	base.InitUserRouter(publicGroup, privateGroup)
 	base.InitRoleRouter(privateGroup)
+	base.InitUserActionRouter(privateGroup)
 	articles.InitArticleRouter(publicGroup, privateGroup)
 	files.InitFileRouter(publicGroup)
 

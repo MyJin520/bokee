@@ -273,8 +273,6 @@ func InitSuperRoleCasbin(engine *gin.Engine) {
 }
 
 // defaultUserRoleRules 普通用户（注册用户）默认可访问的自助路由：
-// 账户自助（资料查看/修改、登出、改密）与个人文章管理（创建/更新/删除自己的文章）。
-// 用户/角色管理等后台路由不在此列。
 var defaultUserRoleRules = [][2]string{
 	{"/pri/user/get_info", "GET"},
 	{"/pri/user/update", "PUT"},
@@ -283,6 +281,7 @@ var defaultUserRoleRules = [][2]string{
 	{"/pri/article/create", "POST"},
 	{"/pri/article/update", "PUT"},
 	{"/pri/article/delete", "DELETE"},
+	{"/pri/user_action/create", "POST"},
 }
 
 // InitDefaultUserRoleCasbin 为普通用户角色幂等补齐自助路由权限（只增不删，
