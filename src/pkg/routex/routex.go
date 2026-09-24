@@ -1,7 +1,9 @@
 package routex
 
 import (
+	"bokee/internal/mods/response"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -72,4 +74,18 @@ func (g *Group) PUT(path, desc string, handler gin.HandlerFunc) {
 func (g *Group) DELETE(path, desc string, handler gin.HandlerFunc) {
 	g.RouterGroup.DELETE(path, handler)
 	Set(http.MethodDelete, joinPath(g.BasePath(), path), g.module, desc)
+}
+
+func QueryUint(c *gin.Context, key string) (uint, bool) {
+	str := c.Query(key)
+	if str == "" {
+		response.FailWithMessage(key+"不能为空", c)
+		return 0, false
+	}
+	id, err := strconv.ParseUint(str, 10, 32)
+	if err != nil {
+		response.FailWithMessage(key+"参数异常", c)
+		return 0, false
+	}
+	return uint(id), true
 }
