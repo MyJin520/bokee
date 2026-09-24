@@ -35,12 +35,14 @@ func (s *UserActionService) Delete(ctx context.Context, actionId uint, userId ui
 	return nil
 }
 
-func (s *UserActionService) List(req request.ActionListReq, userId uint) ([]response.UserActionListResponse, int64, error) {
+func (s *UserActionService) List(req request.ActionListReq, userID uint) ([]response.UserActionListResponse, int64, error) {
 	req.Normalize()
-	query := global.DB.Model(&basic.UserAction{}).Where("user_id = ?", userId).Where("action_type = ?", req.ActionType)
+
+	query := global.DB.Model(&basic.UserAction{}).Where("user_id = ?", userID).Where("action_type = ?", req.ActionType)
 	if req.TargetType != "" {
 		query = query.Where("target_type = ?", req.TargetType)
 	}
+
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		global.Log.Error("用户操作列表获取失败", zap.Error(err))
@@ -53,26 +55,60 @@ func (s *UserActionService) List(req request.ActionListReq, userId uint) ([]resp
 		return nil, 0, fmt.Errorf("用户操作列表获取失败")
 	}
 
+	articleIDs := collectTargetIDs(actions, "article")
+	authorIDs := collectTargetIDs(actions, "author")
+
+	articleMap := make(map[uint]*response.Article, len(articleIDs))
+	if len(articleIDs) > 0 {
+		var articles []basic.Article
+		if err := global.DB.Select("id", "title").Where("id IN ?", articleIDs).Find(&articles).Error; err != nil {
+			global.Log.Error("批量查询文章失败", zap.Error(err))
+			return nil, 0, fmt.Errorf("用户操作列表获取失败")
+		}
+		for _, article := range articles {
+			articleMap[article.ID] = &response.Article{ID: article.ID, Title: article.Title}
+		}
+	}
+
+	authorMap := make(map[uint]*response.Author, len(authorIDs))
+	if len(authorIDs) > 0 {
+		var users []basic.User
+		if err := global.DB.Select("id", "name").Where("id IN ?", authorIDs).Find(&users).Error; err != nil {
+			global.Log.Error("批量查询作者失败", zap.Error(err))
+			return nil, 0, fmt.Errorf("用户操作列表获取失败")
+		}
+		for _, user := range users {
+			authorMap[user.ID] = &response.Author{ID: user.ID, Name: user.Name}
+		}
+	}
+
 	list := make([]response.UserActionListResponse, 0, len(actions))
 	for _, action := range actions {
 		item := response.UserActionListResponse{ActionID: action.ID}
 		switch action.TargetType {
 		case "article":
-			var article basic.Article
-			if err := global.DB.Select("id", "title").Where("id = ?", action.TargetID).First(&article).Error; err != nil {
-				global.Log.Warn("查询目标文章失败", zap.Error(err), zap.Uint("article_id", action.TargetID))
-				continue
-			}
-			item.Article = &response.Article{ID: article.ID, Title: article.Title}
+			item.Article = articleMap[action.TargetID]
 		case "author":
-			var user basic.User
-			if err := global.DB.Select("id", "name").Where("id = ?", action.TargetID).First(&user).Error; err != nil {
-				global.Log.Warn("查询目标作者失败", zap.Error(err), zap.Uint("author_id", action.TargetID))
-				continue
-			}
-			item.Author = &response.Author{ID: user.ID, Name: user.Name}
+			item.Author = authorMap[action.TargetID]
 		}
 		list = append(list, item)
 	}
+
 	return list, total, nil
+}
+
+func collectTargetIDs(actions []basic.UserAction, targetType string) []uint {
+	seen := make(map[uint]struct{})
+	ids := make([]uint, 0)
+	for _, action := range actions {
+		if action.TargetType != targetType {
+			continue
+		}
+		if _, ok := seen[action.TargetID]; ok {
+			continue
+		}
+		seen[action.TargetID] = struct{}{}
+		ids = append(ids, action.TargetID)
+	}
+	return ids
 }
