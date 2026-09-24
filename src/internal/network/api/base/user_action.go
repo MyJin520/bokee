@@ -4,7 +4,9 @@ import (
 	"bokee/global"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
+	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/base"
+	"bokee/pkg/routex"
 	"bokee/pkg/verifyx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -31,4 +33,17 @@ func (u *UserActionApi) Create(c *gin.Context) {
 		return
 	}
 	response.OkWithMessage("用户操作成功", c)
+}
+
+func (u *UserActionApi) Delete(c *gin.Context) {
+	actionId, ok := routex.QueryUint(c, "id")
+	if !ok {
+		return
+	}
+	userId, _ := middleware.GetUserIDFromContext(c)
+	if err := userActionService.Delete(c.Request.Context(), actionId, userId); err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithMessage("用户操作删除成功", c)
 }
