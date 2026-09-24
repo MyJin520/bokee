@@ -47,3 +47,24 @@ func (u *UserActionApi) Delete(c *gin.Context) {
 	}
 	response.OkWithMessage("用户操作删除成功", c)
 }
+
+func (u *UserActionApi) List(c *gin.Context) {
+	var req request.ActionListReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		global.Log.Error("用户操作请求参数异常", zap.Error(err))
+		response.FailWithMessage("请求参数异常", c)
+		return
+	}
+	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
+		global.Log.Error("用户操作请求参数异常", zap.String("errMsg", errMsg))
+		response.FailWithMessage(errMsg, c)
+		return
+	}
+	userId, _ := middleware.GetUserIDFromContext(c)
+	list, total, err := userActionService.List(req, userId)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithPage(list, total, req.Page, req.PageSize, "用户操作列表获取成功", c)
+}

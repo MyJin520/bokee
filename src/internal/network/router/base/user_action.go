@@ -13,5 +13,6 @@ func InitUserActionRouter(privateGroup *gin.RouterGroup) {
 	{
 		userActionPrivate.POST("/create", "创建用户操作", userActionApi.Create)
 		userActionPrivate.DELETE("/delete", "删除用户操作", userActionApi.Delete)
+		userActionPrivate.POST("/list", "获取用户操作列表", userActionApi.List)
 	}
 }

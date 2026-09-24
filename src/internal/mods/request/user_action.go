@@ -6,3 +6,9 @@ type ActionCreateReq struct {
 	ActionType string `json:"actionType" label:"操作类型" validate:"required"`
 	TargetType string `json:"targetType" label:"目标类型" validate:"required"`
 }
+
+type ActionListReq struct {
+	PageReq
+	ActionType string `json:"actionType" label:"操作类型" validate:"required"`
+	TargetType string `json:"targetType" label:"目标类型" validate:"required"`
+}
