@@ -10,15 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
-// 业务缓存命名空间（Key 形如 bokee:<namespace>:<biz>:<id>），新模块在此登记
+// 业务缓存命名空间
 const (
 	NSUser    = "user"
 	NSArticle = "article"
 	NSRole    = "role"
 )
 
-// Key 生成业务缓存 Key（自动带 bokee 前缀，空段自动跳过）。
-// 段值支持 string 与整数（如 uint id），整数自动转为十进制字符串。
+// Key 生成业务缓存 Key
 func Key(parts ...any) string {
 	strs := make([]string, 0, len(parts))
 	for _, p := range parts {
@@ -30,7 +29,7 @@ func Key(parts ...any) string {
 	return redisx.BuildKey(strs...)
 }
 
-// Invalidate 批量失效缓存 Key（先写库、后删缓存，保证最终一致；失败仅记日志不阻断主流程）
+// Invalidate 批量失效缓存 Key
 func Invalidate(ctx context.Context, keys ...string) {
 	if len(keys) == 0 {
 		return
