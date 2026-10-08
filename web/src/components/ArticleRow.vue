@@ -44,6 +44,8 @@ async function onLike(event: MouseEvent) {
   reacting.value = true
   try {
     const nowLiked = await toggleLiked(props.article.id)
+    // 后端已同步点赞数，前端乐观 ±1 保持一致
+    props.article.likeCount = Math.max(0, props.article.likeCount + (nowLiked ? 1 : -1))
     ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
