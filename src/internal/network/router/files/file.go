@@ -8,10 +8,10 @@ import (
 
 var fileApi = files.FileApi{}
 
-func InitFileRouter(publicGroup *gin.RouterGroup) {
+func InitFileRouter(privateGroup *gin.RouterGroup) {
 	const module = "文件模块"
-	filePublic := routex.NewGroup(module, publicGroup.Group("/file"))
+	filePrivate := routex.NewGroup(module, privateGroup.Group("/file"))
 	{
-		filePublic.POST("/uploads", "文件上传", fileApi.Uploads) // 文件上传
+		filePrivate.POST("/uploads", "文件上传", fileApi.Uploads) // 文件上传（需登录鉴权）
 	}
 }

@@ -26,7 +26,7 @@ func Routers() *gin.Engine {
 	base.InitRoleRouter(privateGroup)
 	base.InitUserActionRouter(privateGroup)
 	articles.InitArticleRouter(publicGroup, privateGroup)
-	files.InitFileRouter(publicGroup)
+	files.InitFileRouter(privateGroup)
 
 	return engine
 }

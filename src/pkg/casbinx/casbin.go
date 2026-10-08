@@ -284,6 +284,7 @@ var defaultUserRoleRules = [][2]string{
 	{"/pri/user_action/create", "POST"},
 	{"/pri/user_action/delete", "DELETE"},
 	{"/pri/user_action/list", "POST"},
+	{"/pri/file/uploads", "POST"},
 }
 
 // InitDefaultUserRoleCasbin 为普通用户角色幂等补齐自助路由权限（只增不删，
