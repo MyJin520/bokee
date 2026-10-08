@@ -16,7 +16,7 @@ func NewUserAction(userID, targetID uint, targetType, actionType string) *UserAc
 	return &UserAction{
 		UserID:     userID,     // 当前用户ID
 		TargetID:   targetID,   // 目标ID（文章ID或作者ID）
-		TargetType: targetType, // 目标类型(article/author)
-		ActionType: actionType, // 动作类型(bookmark/like/follow)
+		TargetType: targetType, // 目标类型(article || author)
+		ActionType: actionType, // 动作类型(bookmark/like || follow)
 	}
 }

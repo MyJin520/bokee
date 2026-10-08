@@ -47,6 +47,11 @@ func (a *ArticleService) DeleteArticleInfoCacheByUser(ctx context.Context, userI
 	deleteArticleInfoCache(ctx, ids...)
 }
 
+// InvalidateArticleInfoCache 失效指定文章详情缓存（供用户操作等模块调用，如点赞数变更后刷新缓存）
+func InvalidateArticleInfoCache(ctx context.Context, ids ...uint) {
+	deleteArticleInfoCache(ctx, ids...)
+}
+
 func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
 	newArticle := basic.Article{
 		UserID:  userId,
