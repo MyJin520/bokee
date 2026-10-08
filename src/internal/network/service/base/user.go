@@ -211,7 +211,7 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 
 	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", uid))
 
-	_, nameChanged := updates["user_name"]
+	_, nameChanged := updates["name"]
 	_, avatarChanged := updates["avatar"]
 	if nameChanged || avatarChanged {
 		articleService.DeleteArticleInfoCacheByUser(ctx, uid)

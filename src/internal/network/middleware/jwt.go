@@ -64,7 +64,7 @@ func GetUserIDFromContext(c *gin.Context) (uint, bool) {
 
 // GetUsernameFromContext 从上下文获取当前登录用户名
 func GetUsernameFromContext(c *gin.Context) (string, bool) {
-	username, exists := c.Get("username")
+	username, exists := c.Get("userName")
 	if !exists {
 		return "", false
 	}

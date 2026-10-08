@@ -74,7 +74,7 @@ func GenerateToken(userID uint, userName string, roleCodes []uint) (string, erro
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    global.Config.JWT.Issuer,
-			Subject:   userName + "kim",
+			Subject:   userName,
 			Audience:  global.Config.JWT.Audience,
 		},
 	}
