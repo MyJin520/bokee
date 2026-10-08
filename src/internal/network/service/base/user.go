@@ -11,6 +11,7 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/articles"
+	"bokee/pkg/cachex"
 	"bokee/pkg/commons"
 	"bokee/pkg/cryptox/hash"
 	"bokee/pkg/jwtx"
@@ -31,27 +32,6 @@ var (
 	// resetLimiter 重置密码防爆破：10min 窗口内 5 次失败锁定 30min（仅非管理员旧密码错误计数）
 	resetLimiter = &limitx.FailLimiter{Scope: "user:reset", Window: 10 * time.Minute, Max: 5, Lock: 30 * time.Minute}
 )
-
-// userInfoKey 用户信息缓存 Key：bokee:user:info:<id>
-func userInfoKey(id uint) string {
-	return redisx.BuildKey("user", "info", fmt.Sprintf("%d", id))
-}
-
-// userRegisterKey 注册限流 Key：bokee:user:register:<phone>
-func userRegisterKey(phone string) string {
-	return redisx.BuildKey("user", "register", phone)
-}
-
-// deleteUserInfoCache 写操作落库成功后失效用户信息缓存（先写库、后删缓存，保证最终一致）
-func deleteUserInfoCache(ctx context.Context, ids ...uint) {
-	keys := make([]string, 0, len(ids))
-	for _, id := range ids {
-		keys = append(keys, userInfoKey(id))
-	}
-	if err := redisx.Delete(ctx, keys...); err != nil {
-		global.Log.Error("删除用户信息缓存失败", zap.Strings("keys", keys), zap.Error(err))
-	}
-}
 
 // userContactQuery 根据手机号/邮箱构造用户联系方式查询条件
 func userContactQuery(db *gorm.DB, phone, email string) *gorm.DB {
@@ -84,7 +64,7 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 	if limitIdentity == "" {
 		limitIdentity = req.Email
 	}
-	if ok, err := redisx.SetNX(ctx, userRegisterKey(limitIdentity), "1", time.Minute); err != nil {
+	if ok, err := redisx.SetNX(ctx, cachex.Key(cachex.NSUser, "register", limitIdentity), "1", time.Minute); err != nil {
 		global.Log.Error("注册限流检查失败", zap.Error(err), zap.String("identity", limitIdentity))
 	} else if !ok {
 		global.Log.Warn("注册过于频繁", zap.String("identity", limitIdentity))
@@ -229,7 +209,7 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 		return fmt.Errorf("用户不存在或未做任何更改")
 	}
 
-	deleteUserInfoCache(ctx, uid)
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", uid))
 
 	_, nameChanged := updates["user_name"]
 	_, avatarChanged := updates["avatar"]
@@ -341,7 +321,7 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 	}
 
 	resetLimiter.Clear(ctx, operatorID)
-	deleteUserInfoCache(ctx, targetUserID)
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", targetUserID))
 	return nil
 }
 
@@ -389,7 +369,7 @@ func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBind
 		return "", err
 	}
 
-	deleteUserInfoCache(ctx, req.UserID)
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", req.UserID))
 	return msg, nil
 }
 
@@ -431,7 +411,7 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 
 // GetInfo 获取用户信息
 func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoResp, error) {
-	key := userInfoKey(id)
+	key := cachex.Key(cachex.NSUser, "info", id)
 
 	var cached response.UserInfoResp
 	if err := redisx.GetJSON(ctx, key, &cached); err != nil {

@@ -9,6 +9,7 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
+	"bokee/pkg/cachex"
 	"bokee/pkg/commons"
 	"bokee/pkg/redisx"
 	"errors"
@@ -17,22 +18,6 @@ import (
 )
 
 type ArticleService struct{}
-
-// articleInfoKey 文章详情缓存 Key：bokee:article:info:<id>
-func articleInfoKey(id uint) string {
-	return redisx.BuildKey("article", "info", fmt.Sprintf("%d", id))
-}
-
-// deleteArticleInfoCache 写操作落库成功后失效文章详情缓存（先写库、后删缓存，保证最终一致）
-func deleteArticleInfoCache(ctx context.Context, ids ...uint) {
-	keys := make([]string, 0, len(ids))
-	for _, id := range ids {
-		keys = append(keys, articleInfoKey(id))
-	}
-	if err := redisx.Delete(ctx, keys...); err != nil {
-		global.Log.Error("删除文章详情缓存失败", zap.Strings("keys", keys), zap.Error(err))
-	}
-}
 
 // DeleteArticleInfoCacheByUser 失效指定用户的所有文章详情缓存（如用户更新姓名/头像时调用）
 func (a *ArticleService) DeleteArticleInfoCacheByUser(ctx context.Context, userId uint) {
@@ -44,12 +29,11 @@ func (a *ArticleService) DeleteArticleInfoCacheByUser(ctx context.Context, userI
 	if len(ids) == 0 {
 		return
 	}
-	deleteArticleInfoCache(ctx, ids...)
-}
-
-// InvalidateArticleInfoCache 失效指定文章详情缓存（供用户操作等模块调用，如点赞数变更后刷新缓存）
-func InvalidateArticleInfoCache(ctx context.Context, ids ...uint) {
-	deleteArticleInfoCache(ctx, ids...)
+	keys := make([]string, 0, len(ids))
+	for _, id := range ids {
+		keys = append(keys, cachex.Key(cachex.NSArticle, "info", id))
+	}
+	cachex.Invalidate(ctx, keys...)
 }
 
 func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
@@ -101,7 +85,7 @@ func (a *ArticleService) Update(ctx context.Context, req request.UpdateArticleRe
 	}
 
 	// 落库成功后失效缓存
-	deleteArticleInfoCache(ctx, article.ID)
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSArticle, "info", article.ID))
 	return nil
 }
 
@@ -133,7 +117,7 @@ func (a *ArticleService) Delete(ctx context.Context, id uint, userId uint) error
 	}
 	global.Log.Info("删除文章成功", zap.Uint("articleID", id))
 	// 落库成功后失效缓存
-	deleteArticleInfoCache(ctx, article.ID)
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSArticle, "info", article.ID))
 	return nil
 }
 
@@ -145,7 +129,7 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 	}
 
 	// 先查缓存
-	key := articleInfoKey(id)
+	key := cachex.Key(cachex.NSArticle, "info", id)
 	var cached response.ArticleInfoResp
 	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
 		global.Log.Error("读取文章详情缓存失败，降级查库", zap.Error(err), zap.Uint("articleID", id))

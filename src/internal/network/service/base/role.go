@@ -5,6 +5,7 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
+	"bokee/pkg/cachex"
 	"bokee/pkg/casbinx"
 	"bokee/pkg/commons"
 	"bokee/pkg/redisx"
@@ -22,10 +23,6 @@ import (
 )
 
 type RoleService struct{}
-
-func roleInfoKey(id uint) string {
-	return redisx.BuildKey("role", "info", fmt.Sprintf("%d", id))
-}
 
 // Create 创建角色
 func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, error) {
@@ -130,9 +127,7 @@ func (s *RoleService) Update(ctx context.Context, req request.RoleUpdateReq) err
 		return fmt.Errorf("角色不存在或未做任何更改")
 	}
 
-	if err := redisx.Delete(ctx, roleInfoKey(req.ID)); err != nil {
-		global.Log.Error("删除角色缓存失败", zap.Error(err), zap.Uint("roleID", req.ID))
-	}
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSRole, "info", req.ID))
 
 	return nil
 }
@@ -170,9 +165,7 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error {
 		return fmt.Errorf("删除角色失败，请稍后重试")
 	}
 
-	if err := redisx.Delete(ctx, roleInfoKey(id)); err != nil {
-		global.Log.Error("删除角色缓存失败", zap.Error(err), zap.Uint("roleID", id))
-	}
+	cachex.Invalidate(ctx, cachex.Key(cachex.NSRole, "info", id))
 
 	global.Log.Info("删除角色成功", zap.Uint("roleID", id), zap.String("roleName", role.Name))
 	return nil
@@ -180,7 +173,7 @@ func (s *RoleService) Delete(ctx context.Context, id uint) error {
 
 // GetInfo 获取单个角色详情
 func (s *RoleService) GetInfo(ctx context.Context, id uint) (response.RoleResp, error) {
-	key := roleInfoKey(id)
+	key := cachex.Key(cachex.NSRole, "info", id)
 
 	var cached response.RoleResp
 	if err := redisx.GetJSON(ctx, key, &cached); err == nil && cached.ID != 0 {

@@ -5,7 +5,7 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
-	"bokee/internal/network/service/articles"
+	"bokee/pkg/cachex"
 	"context"
 	"errors"
 	"fmt"
@@ -111,7 +111,7 @@ func syncArticleLikeCount(articleID uint, delta int) {
 		global.Log.Warn("文章点赞数同步失败", zap.Uint("articleID", articleID), zap.Int("delta", delta), zap.Error(err))
 		return
 	}
-	articles.InvalidateArticleInfoCache(context.Background(), articleID)
+	cachex.Invalidate(context.Background(), cachex.Key(cachex.NSArticle, "info", articleID))
 }
 
 func (s *UserActionService) List(req request.ActionListReq, userID uint) ([]response.UserActionListResponse, int64, error) {
