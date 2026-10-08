@@ -137,43 +137,6 @@ func (a *ArticleService) Delete(ctx context.Context, id uint, userId uint) error
 	return nil
 }
 
-// buildArticleInfoResp 将文章模型转换为详情响应结构体
-func buildArticleInfoResp(article basic.Article, user basic.User) response.ArticleInfoResp {
-	return response.ArticleInfoResp{
-		ID:        article.ID,
-		Title:     article.Title,
-		Content:   article.Content,
-		Summary:   article.Summary,
-		Cover:     article.Cover,
-		ViewCount: article.ViewCount,
-		LikeCount: article.LikeCount,
-		IsTop:     article.IsTop,
-		UserID:    article.UserID,
-		Author: response.AuthorInfo{
-			ID:     user.ID,
-			Name:   user.Name,
-			Avatar: user.Avatar,
-		},
-		CreatedAt: article.CreatedAt,
-		UpdatedAt: article.UpdatedAt,
-	}
-}
-
-// buildArticleListItemResp 将文章模型转换为列表响应结构体（不含正文内容）
-func buildArticleListItemResp(article basic.Article) response.ArticleListItemResp {
-	return response.ArticleListItemResp{
-		ID:        article.ID,
-		Title:     article.Title,
-		Summary:   article.Summary,
-		Cover:     article.Cover,
-		ViewCount: article.ViewCount,
-		LikeCount: article.LikeCount,
-		IsTop:     article.IsTop,
-		UserID:    article.UserID,
-		CreatedAt: article.CreatedAt,
-	}
-}
-
 func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.ArticleInfoResp, error) {
 	// 每次访问阅读量 +1（原子自增，忽略缓存命中与否）
 	if err := global.DB.Model(&basic.Article{}).Where("id = ?", id).
@@ -209,7 +172,7 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 	}
 
 	// 查库成功后回填缓存
-	resp := buildArticleInfoResp(article, user)
+	resp := response.NewArticleInfoResp(article, user)
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填文章详情缓存失败", zap.Error(err), zap.Uint("articleID", id))
 	}
@@ -236,7 +199,7 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]res
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, buildArticleListItemResp(article))
+		list = append(list, response.NewArticleListItemResp(article))
 	}
 	return list, total, nil
 }
@@ -272,7 +235,7 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]response.Artic
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, buildArticleListItemResp(article))
+		list = append(list, response.NewArticleListItemResp(article))
 	}
 	return list, total, nil
 }

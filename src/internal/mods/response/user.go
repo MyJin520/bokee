@@ -1,6 +1,9 @@
 package response
 
-import "time"
+import (
+	"bokee/internal/mods/basic"
+	"time"
+)
 
 type JwtResp struct {
 	Token  string `json:"token"`
@@ -41,4 +44,23 @@ type PriRouteResp struct {
 type PriModuleResp struct {
 	Module string         `json:"module"` // 模块名
 	Routes []PriRouteResp `json:"routes"` // 该模块下的路由
+}
+
+// NewUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
+func NewUserInfoResp(user basic.User) UserInfoResp {
+	roles := make([]UserRoleResp, 0, len(user.Roles))
+	for _, role := range user.Roles {
+		roles = append(roles, UserRoleResp{ID: role.ID, Name: role.Name, Code: role.Code})
+	}
+	return UserInfoResp{
+		ID:        user.ID,
+		Name:      user.Name,
+		Phone:     user.Phone,
+		Email:     user.Email,
+		Status:    user.Status,
+		Avatar:    user.Avatar,
+		Roles:     roles,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
 }

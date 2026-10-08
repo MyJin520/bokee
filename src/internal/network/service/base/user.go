@@ -53,25 +53,6 @@ func deleteUserInfoCache(ctx context.Context, ids ...uint) {
 	}
 }
 
-// buildUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
-func buildUserInfoResp(user basic.User) response.UserInfoResp {
-	roles := make([]response.UserRoleResp, 0, len(user.Roles))
-	for _, role := range user.Roles {
-		roles = append(roles, response.UserRoleResp{ID: role.ID, Name: role.Name, Code: role.Code})
-	}
-	return response.UserInfoResp{
-		ID:        user.ID,
-		Name:      user.Name,
-		Phone:     user.Phone,
-		Email:     user.Email,
-		Status:    user.Status,
-		Avatar:    user.Avatar,
-		Roles:     roles,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-	}
-}
-
 // userContactQuery 根据手机号/邮箱构造用户联系方式查询条件
 func userContactQuery(db *gorm.DB, phone, email string) *gorm.DB {
 	switch {
@@ -443,7 +424,7 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 
 	users := make([]response.UserInfoResp, 0, len(modelUsers))
 	for _, user := range modelUsers {
-		users = append(users, buildUserInfoResp(user))
+		users = append(users, response.NewUserInfoResp(user))
 	}
 	return users, total, nil
 }
@@ -469,7 +450,7 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
 
-	resp := buildUserInfoResp(user)
+	resp := response.NewUserInfoResp(user)
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填用户信息缓存失败", zap.Error(err), zap.Uint("userID", id))
 	}
