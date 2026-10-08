@@ -48,6 +48,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/my/bookmarks',
+      name: 'my-bookmarks',
+      component: () => import('@/views/MyBookmarks.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/my/follows',
+      name: 'my-follows',
+      component: () => import('@/views/MyFollows.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/profile',
       name: 'profile',
       component: () => import('@/views/Profile.vue'),

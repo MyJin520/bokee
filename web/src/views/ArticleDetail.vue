@@ -13,7 +13,8 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const ui = useUiStore()
-const { isLiked, isSaved, toggleLiked, toggleSaved } = useReactions()
+const { isLiked, isSaved, isFollowed, toggleLiked, toggleSaved, toggleFollow, ensureReactions } =
+  useReactions()
 
 const article = ref<ArticleInfo | null>(null)
 const renderedContent = ref('')
@@ -22,15 +23,25 @@ const notFound = ref(false)
 const authorArticles = ref<ArticleListItem[]>([])
 const authorArticlesLoading = ref(false)
 const coverFailed = ref(false)
+const reacting = ref(false)
 
 const isOwner = computed(
   () => Boolean(article.value) && userStore.userInfo?.id === article.value?.userId,
 )
+const followedAuthor = computed(() => (article.value ? isFollowed(article.value.userId) : false))
 
 watch(article, async (val) => {
   renderedContent.value = val?.content ? await renderMarkdown(val.content) : ''
   if (val?.userId) fetchAuthorArticles(val.userId, val.id)
 })
+
+/** 未登录时提示并跳转登录页 */
+function requireLogin(): boolean {
+  if (userStore.isLoggedIn) return true
+  ui.toast('请先登录后再操作')
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
+  return false
+}
 
 async function fetchAuthorArticles(userId: number, currentArticleId: number) {
   authorArticlesLoading.value = true
@@ -54,6 +65,8 @@ async function fetchArticle(id: number) {
   coverFailed.value = false
   try {
     article.value = await getArticleInfo(id)
+    // 同步当前用户的点赞/收藏/关注状态（已加载则跳过）
+    ensureReactions().catch(() => {})
   } catch (error: unknown) {
     article.value = null
     notFound.value = true
@@ -63,16 +76,44 @@ async function fetchArticle(id: number) {
   }
 }
 
-function onLike() {
-  if (!article.value) return
-  const nowLiked = toggleLiked(article.value.id)
-  article.value.likeCount += nowLiked ? 1 : -1
+async function onLike() {
+  if (!article.value || !requireLogin() || reacting.value) return
+  reacting.value = true
+  try {
+    const nowLiked = await toggleLiked(article.value.id)
+    ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
+  } catch (error: unknown) {
+    ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    reacting.value = false
+  }
 }
 
-function onSave() {
-  if (!article.value) return
-  const nowSaved = toggleSaved(article.value.id)
-  ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
+async function onSave() {
+  if (!article.value || !requireLogin() || reacting.value) return
+  reacting.value = true
+  try {
+    const nowSaved = await toggleSaved(article.value.id)
+    ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
+  } catch (error: unknown) {
+    ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    reacting.value = false
+  }
+}
+
+async function onFollow() {
+  if (!article.value || !requireLogin() || reacting.value) return
+  reacting.value = true
+  try {
+    const nowFollowing = await toggleFollow(article.value.userId)
+    const authorName = article.value.author?.name || '作者'
+    ui.toast(nowFollowing ? `已关注 ${authorName}` : `已取消关注 ${authorName}`)
+  } catch (error: unknown) {
+    ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    reacting.value = false
+  }
 }
 
 function goToEdit() {
@@ -154,6 +195,7 @@ onBeforeRouteUpdate((to) => {
             <button
               :class="['reaction', { active: isLiked(article.id) }]"
               type="button"
+              :disabled="reacting"
               @click="onLike"
             >
               ♥ 点赞 · {{ formatNumber(article.likeCount) }}
@@ -161,6 +203,7 @@ onBeforeRouteUpdate((to) => {
             <button
               :class="['reaction', { active: isSaved(article.id) }]"
               type="button"
+              :disabled="reacting"
               @click="onSave"
             >
               {{ isSaved(article.id) ? '♥ 已收藏' : '♡ 收藏' }}
@@ -182,6 +225,15 @@ onBeforeRouteUpdate((to) => {
             </span>
             <div class="author-name">{{ article.author?.name || '匿名作者' }}</div>
             <p class="author-bio">认真记录，慢慢表达。这里是 TA 的公开文章与思考。</p>
+            <button
+              v-if="!isOwner"
+              :class="['follow-btn', { active: followedAuthor }]"
+              type="button"
+              :disabled="reacting"
+              @click="onFollow"
+            >
+              {{ followedAuthor ? '✓ 已关注' : '＋ 关注作者' }}
+            </button>
             <router-link class="author-link" :to="`/articles?user=${encodeURIComponent(article.author?.name || '')}`">
               查看 TA 的文章 →
             </router-link>
@@ -382,6 +434,29 @@ onBeforeRouteUpdate((to) => {
   color: #c4cec7;
   font-size: 12px;
   line-height: 1.7;
+}
+
+.follow-btn {
+  display: block;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--lime);
+  background: transparent;
+  color: var(--lime);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.follow-btn:hover,
+.follow-btn.active {
+  background: var(--lime);
+  color: var(--ink);
+}
+
+.follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .author-link {

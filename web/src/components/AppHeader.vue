@@ -125,6 +125,8 @@ async function logout() {
       <template v-if="userStore.isLoggedIn">
         <button type="button" @click="go('/articles/create')">写文章</button>
         <button type="button" @click="go('/my-articles')">我的文章</button>
+        <button type="button" @click="go('/my/bookmarks')">我的收藏</button>
+        <button type="button" @click="go('/my/follows')">我的关注</button>
         <button type="button" @click="go('/profile')">个人中心</button>
         <button type="button" @click="logout">退出登录</button>
       </template>

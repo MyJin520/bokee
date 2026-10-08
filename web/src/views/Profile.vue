@@ -223,6 +223,8 @@ onMounted(async () => {
           <p class="side-title">Quick links · 快捷入口</p>
           <button class="quick-row" type="button" @click="router.push('/articles/create')">＋ 写新文章</button>
           <button class="quick-row" type="button" @click="router.push('/my-articles')">📄 我的文章</button>
+          <button class="quick-row" type="button" @click="router.push('/my/bookmarks')">♥ 我的收藏</button>
+          <button class="quick-row" type="button" @click="router.push('/my/follows')">＋ 我的关注</button>
           <button class="quick-row danger" type="button" @click="logout">退出登录</button>
         </section>
       </div>

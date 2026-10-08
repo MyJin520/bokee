@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { useReactions } from '@/composables/useReactions'
 import AppHeader from '@/components/AppHeader.vue'
 import AppToast from '@/components/AppToast.vue'
 import AppConfirm from '@/components/AppConfirm.vue'
 
 const userStore = useUserStore()
+const { ensureReactions, resetReactions } = useReactions()
+
 onMounted(() => {
   userStore.restoreSession()
 })
+
+// 登录态变化时同步点赞/收藏/关注状态：登录后加载，登出后清空
+watch(
+  () => userStore.userInfo?.id,
+  (id) => {
+    if (id) {
+      ensureReactions().catch(() => {})
+    } else {
+      resetReactions()
+    }
+  },
+)
 </script>
 
 <template>

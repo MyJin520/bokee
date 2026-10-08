@@ -88,3 +88,28 @@ export interface UploadedFile {
   createdAt: string
   updatedAt: string
 }
+
+/** 用户操作类型：点赞 / 收藏 / 关注 */
+export type ActionType = 'like' | 'bookmark' | 'follow'
+
+/** 用户操作目标类型：文章 / 作者 */
+export type TargetType = 'article' | 'author'
+
+/** 用户操作列表中的文章目标 */
+export interface UserActionArticle {
+  id: number
+  title: string
+}
+
+/** 用户操作列表中的作者目标 */
+export interface UserActionAuthor {
+  id: number
+  name: string
+}
+
+/** 用户操作列表项 */
+export interface UserActionListItem {
+  actionId: number
+  author?: UserActionAuthor
+  article?: UserActionArticle
+}

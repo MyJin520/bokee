@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ArticleListItem } from '@/types'
 import { useReactions } from '@/composables/useReactions'
+import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
 import { formatShortDate, formatNumber, initialOf } from '@/utils/format'
 
@@ -12,26 +13,57 @@ const props = defineProps<{
 
 const router = useRouter()
 const ui = useUiStore()
-const { isLiked, isSaved, toggleLiked, toggleSaved } = useReactions()
+const userStore = useUserStore()
+const { isLiked, isSaved, toggleLiked, toggleSaved, ensureReactions } = useReactions()
 
 const liked = computed(() => isLiked(props.article.id))
 const saved = computed(() => isSaved(props.article.id))
+const reacting = ref(false)
 const coverFailed = ref(false)
+
+onMounted(() => {
+  // 同步当前用户的点赞/收藏状态（已加载则跳过）
+  ensureReactions().catch(() => {})
+})
 
 function openArticle() {
   router.push(`/article/${props.article.id}`)
 }
 
-function onLike(event: MouseEvent) {
-  event.stopPropagation()
-  const nowLiked = toggleLiked(props.article.id)
-  props.article.likeCount += nowLiked ? 1 : -1
+/** 未登录时提示并跳转登录页 */
+function requireLogin(): boolean {
+  if (userStore.isLoggedIn) return true
+  ui.toast('请先登录后再操作')
+  router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+  return false
 }
 
-function onSave(event: MouseEvent) {
+async function onLike(event: MouseEvent) {
   event.stopPropagation()
-  const nowSaved = toggleSaved(props.article.id)
-  ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
+  if (!requireLogin() || reacting.value) return
+  reacting.value = true
+  try {
+    const nowLiked = await toggleLiked(props.article.id)
+    ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
+  } catch (error: unknown) {
+    ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    reacting.value = false
+  }
+}
+
+async function onSave(event: MouseEvent) {
+  event.stopPropagation()
+  if (!requireLogin() || reacting.value) return
+  reacting.value = true
+  try {
+    const nowSaved = await toggleSaved(props.article.id)
+    ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
+  } catch (error: unknown) {
+    ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
+  } finally {
+    reacting.value = false
+  }
 }
 </script>
 
@@ -58,6 +90,7 @@ function onSave(event: MouseEvent) {
         <button
           :class="['row-action', { saved }]"
           type="button"
+          :disabled="reacting"
           :title="saved ? '取消收藏' : '收藏'"
           :aria-label="saved ? '取消收藏' : '收藏文章'"
           @click="onSave"
@@ -67,6 +100,7 @@ function onSave(event: MouseEvent) {
         <button
           :class="['row-action', { liked }]"
           type="button"
+          :disabled="reacting"
           :title="liked ? '取消点赞' : '点赞'"
           :aria-label="liked ? '取消点赞' : '点赞文章'"
           @click="onLike"
@@ -194,6 +228,11 @@ function onSave(event: MouseEvent) {
 .row-action.liked,
 .row-action.saved {
   color: var(--coral-dark);
+}
+
+.row-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .row-action.saved {
