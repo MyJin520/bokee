@@ -23,6 +23,33 @@ type UserActionService struct{}
 // 3. 均不存在 → 新建（并发兜底：唯一索引冲突时静默成功）。
 // 点赞文章时同步自增文章点赞数（仅在实际新建/复活时）。
 func (s *UserActionService) Create(req request.ActionCreateReq) error {
+	// 校验目标存在，避免产生指向不存在资源的脏数据
+	switch req.TargetType {
+	case "article":
+		var article basic.Article
+		if err := global.DB.Select("id").Where("id = ?", req.TargetID).First(&article).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				global.Log.Warn("用户操作失败：目标文章不存在", zap.Uint("targetID", req.TargetID))
+				return fmt.Errorf("目标文章不存在")
+			}
+			global.Log.Error("校验目标文章失败", zap.Error(err), zap.Uint("targetID", req.TargetID))
+			return fmt.Errorf("用户操作失败，请稍后重试")
+		}
+	case "author":
+		var targetUser basic.User
+		if err := global.DB.Select("id").Where("id = ?", req.TargetID).First(&targetUser).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				global.Log.Warn("用户操作失败：目标作者不存在", zap.Uint("targetID", req.TargetID))
+				return fmt.Errorf("目标作者不存在")
+			}
+			global.Log.Error("校验目标作者失败", zap.Error(err), zap.Uint("targetID", req.TargetID))
+			return fmt.Errorf("用户操作失败，请稍后重试")
+		}
+	default:
+		global.Log.Warn("用户操作失败：不支持的目标类型", zap.String("targetType", req.TargetType))
+		return fmt.Errorf("不支持的目标类型")
+	}
+
 	created := false
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. 幂等：有效记录已存在时视为成功

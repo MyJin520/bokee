@@ -28,6 +28,14 @@ func (u *UserActionApi) Create(c *gin.Context) {
 		response.FailWithMessage(errMsg, c)
 		return
 	}
+	// 服务端注入当前登录用户 ID，忽略客户端传入的 userId，防止越权操作他人数据
+	userId, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		global.Log.Warn("用户操作失败：无法获取当前登录用户信息")
+		response.FailWithMessage("无法获取当前登录用户信息", c)
+		return
+	}
+	req.UserID = userId
 	if err := userActionService.Create(req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
