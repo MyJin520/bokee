@@ -51,9 +51,8 @@ function changePage(next: number) {
 }
 
 async function removeBookmark(item: UserActionListItem) {
-  if (!item.article) return
   try {
-    await toggleSaved(item.article.id)
+    await toggleSaved(item.targetId)
     ui.toast('已取消收藏')
     if (items.value.length === 1 && page.value > 1) page.value -= 1
     load()
@@ -89,15 +88,15 @@ onMounted(async () => {
     <template v-else-if="items.length">
       <ul class="saved-list">
         <li v-for="item in items" :key="item.actionId">
-          <button class="saved-main" type="button" @click="router.push(`/article/${item.article?.id}`)">
-            <span class="saved-title">{{ item.article?.title || '未命名文章' }}</span>
-            <span class="saved-date">ID {{ item.article?.id }}</span>
+          <button class="saved-main" type="button" @click="router.push(`/article/${item.targetId}`)">
+            <span class="saved-title">{{ item.targetTitle || '未命名文章' }}</span>
+            <span class="saved-date">ID {{ item.targetId }}</span>
           </button>
           <button
             class="saved-remove"
             type="button"
             @click="removeBookmark(item)"
-            :aria-label="`取消收藏《${item.article?.title || ''}》`"
+            :aria-label="`取消收藏《${item.targetTitle || ''}》`"
           >
             取消收藏
           </button>

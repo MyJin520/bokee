@@ -37,12 +37,11 @@ async function fetchAllActions(actionType: ActionType, targetType: TargetType): 
   return all
 }
 
-/** 列表项 -> targetId => actionId 映射 */
-function toActionMap(list: UserActionListItem[], targetType: TargetType): Map<number, number> {
+/** 列表项 -> targetId => actionId 映射（响应为扁平结构，无需按类型取目标） */
+function toActionMap(list: UserActionListItem[]): Map<number, number> {
   const map = new Map<number, number>()
   for (const item of list) {
-    const target = targetType === 'article' ? item.article : item.author
-    if (target) map.set(target.id, item.actionId)
+    map.set(item.targetId, item.actionId)
   }
   return map
 }
@@ -78,9 +77,9 @@ export function useReactions() {
         fetchAllActions('bookmark', 'article'),
         fetchAllActions('follow', 'author'),
       ])
-      likedActions.value = toActionMap(likes, 'article')
-      savedActions.value = toActionMap(saves, 'article')
-      followedActions.value = toActionMap(follows, 'author')
+      likedActions.value = toActionMap(likes)
+      savedActions.value = toActionMap(saves)
+      followedActions.value = toActionMap(follows)
       loadedForUserId = userId
     })().finally(() => {
       loadingPromise = null
@@ -124,7 +123,7 @@ export function useReactions() {
     // 先用占位 ID 保持本地状态，随后刷新拿到真实 actionId；刷新失败时占位保留，下次刷新校正
     map.value.set(targetId, -1)
     try {
-      map.value = toActionMap(await fetchAllActions(actionType, targetType), targetType)
+      map.value = toActionMap(await fetchAllActions(actionType, targetType))
     } catch {
       // 忽略：保持占位状态，后续 ensure/toggle 会校正
     }

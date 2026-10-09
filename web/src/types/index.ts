@@ -95,21 +95,10 @@ export type ActionType = 'like' | 'bookmark' | 'follow'
 /** 用户操作目标类型：文章 / 作者 */
 export type TargetType = 'article' | 'author'
 
-/** 用户操作列表中的文章目标 */
-export interface UserActionArticle {
-  id: number
-  title: string
-}
-
-/** 用户操作列表中的作者目标 */
-export interface UserActionAuthor {
-  id: number
-  name: string
-}
-
-/** 用户操作列表项 */
+/** 用户操作列表项（扁平结构，按 targetType 解释 targetTitle：文章标题 / 作者名称） */
 export interface UserActionListItem {
   actionId: number
-  author?: UserActionAuthor
-  article?: UserActionArticle
+  targetType: TargetType
+  targetId: number
+  targetTitle: string
 }

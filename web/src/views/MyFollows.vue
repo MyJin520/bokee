@@ -49,10 +49,9 @@ function changePage(next: number) {
 }
 
 async function unfollow(item: UserActionListItem) {
-  if (!item.author) return
   try {
-    await toggleFollow(item.author.id)
-    ui.toast(`已取消关注 ${item.author.name}`)
+    await toggleFollow(item.targetId)
+    ui.toast(`已取消关注 ${item.targetTitle}`)
     if (items.value.length === 1 && page.value > 1) page.value -= 1
     load()
   } catch (error: unknown) {
@@ -89,16 +88,16 @@ onMounted(async () => {
         <li v-for="item in items" :key="item.actionId">
           <router-link
             class="follows-main"
-            :to="`/articles?user=${encodeURIComponent(item.author?.name || '')}`"
+            :to="`/articles?user=${encodeURIComponent(item.targetTitle || '')}`"
           >
-            <span class="follows-avatar">{{ (item.author?.name || '?').slice(0, 1) }}</span>
-            <span class="follows-name">{{ item.author?.name || '未命名作者' }}</span>
+            <span class="follows-avatar">{{ (item.targetTitle || '?').slice(0, 1) }}</span>
+            <span class="follows-name">{{ item.targetTitle || '未命名作者' }}</span>
           </router-link>
           <button
             class="follows-remove"
             type="button"
             @click="unfollow(item)"
-            :aria-label="`取消关注${item.author?.name || ''}`"
+            :aria-label="`取消关注${item.targetTitle || ''}`"
           >
             取消关注
           </button>
