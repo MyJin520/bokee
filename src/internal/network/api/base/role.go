@@ -5,7 +5,6 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/base"
-	"bokee/pkg/verifyx"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"strconv"
@@ -18,14 +17,7 @@ var roleService = &base.RoleService{}
 // Create 创建角色
 func (a *RoleApi) Create(c *gin.Context) {
 	var req request.RoleCreateReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Log.Error("创建角色请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
-		return
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Warn("创建角色参数校验失败", zap.String("err", errMsg))
-		response.FailWithRequest(errMsg, c)
+	if !response.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -40,14 +32,7 @@ func (a *RoleApi) Create(c *gin.Context) {
 // Update 更新角色
 func (a *RoleApi) Update(c *gin.Context) {
 	var req request.RoleUpdateReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Log.Error("更新角色请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
-		return
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Warn("更新角色参数校验失败", zap.String("err", errMsg))
-		response.FailWithRequest(errMsg, c)
+	if !response.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -96,14 +81,7 @@ func (a *RoleApi) GetInfo(c *gin.Context) {
 // List 分页获取角色列表
 func (a *RoleApi) List(c *gin.Context) {
 	var req request.RoleQueryReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Log.Error("角色列表请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
-		return
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Warn("角色列表参数校验失败", zap.String("err", errMsg))
-		response.FailWithRequest(errMsg, c)
+	if !response.BindCheckStruct(c, &req) {
 		return
 	}
 	req.Normalize()
@@ -119,14 +97,7 @@ func (a *RoleApi) List(c *gin.Context) {
 // Auth 角色授权
 func (a *RoleApi) Auth(c *gin.Context) {
 	var req request.RoleAuthReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Log.Error("角色授权请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
-		return
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Warn("角色授权参数校验失败", zap.String("err", errMsg))
-		response.FailWithRequest(errMsg, c)
+	if !response.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -140,9 +111,7 @@ func (a *RoleApi) Auth(c *gin.Context) {
 // GetAllPriRule 获取所有私有路由（保留原有功能）
 func (a *RoleApi) GetAllPriRule(c *gin.Context) {
 	var page request.PageReq
-	if err := c.ShouldBindJSON(&page); err != nil {
-		global.Log.Error("私有路由列表请求参数异常", zap.Error(err))
-		response.FailWithRequest("请求参数异常", c)
+	if !response.BindCheckStruct(c, &page) {
 		return
 	}
 	page.Normalize()
