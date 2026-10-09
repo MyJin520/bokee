@@ -99,25 +99,9 @@ func (u *UserApi) OperateRoles(c *gin.Context) {
 }
 
 func (u *UserApi) GetInfo(c *gin.Context) {
-	var (
-		userID uint
-		err    error
-		ok     bool
-	)
-
-	idStr := c.Query("id")
-	if idStr != "" {
-		userID, ok = routex.QueryUint(c, "id")
-		if !ok {
-			return
-		}
-	} else {
-		userID, ok = middleware.GetUserIDFromContext(c)
-		if !ok {
-			global.Log.Warn("无法获取当前用户信息")
-			response.FailWithMessage("无法获取当前用户信息", c)
-			return
-		}
+	userID, ok := request.ParseQueryUint(c, "id")
+	if !ok {
+		userID, _ = middleware.GetUserIDFromContext(c)
 	}
 
 	user, err := userService.GetInfo(c.Request.Context(), userID)
