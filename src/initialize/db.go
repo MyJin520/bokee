@@ -36,25 +36,13 @@ func migrateTable() {
 // 初始化内置角色与超级管理员：每次启动都会确保内置角色存在，并为历史无角色用户补授普通用户角色
 func initRolesAndUser() {
 	// 1. 确保内置角色存在（超级管理员、普通用户）
-	adminRole := basic.Role{
-		Name:   "超级管理员",
-		Code:   uint(global.SuperRoleCode),
-		Sort:   1,
-		Status: "normal",
-		Remark: "系统内置超级管理员角色",
-	}
-	if err := global.DB.Where("code = ?", adminRole.Code).FirstOrCreate(&adminRole).Error; err != nil {
+	adminRole := basic.NewRole("超级管理员", uint(global.SuperRoleCode), 1, "normal", "系统内置超级管理员角色")
+	if err := global.DB.Where("code = ?", adminRole.Code).FirstOrCreate(adminRole).Error; err != nil {
 		panic("初始化超级管理员角色失败: " + err.Error())
 	}
 
-	userRole := basic.Role{
-		Name:   "普通用户",
-		Code:   uint(global.UserRoleCode),
-		Sort:   2,
-		Status: "normal",
-		Remark: "注册用户默认角色，拥有账户自助与个人文章管理权限",
-	}
-	if err := global.DB.Where("code = ?", userRole.Code).FirstOrCreate(&userRole).Error; err != nil {
+	userRole := basic.NewRole("普通用户", uint(global.UserRoleCode), 2, "normal", "注册用户默认角色，拥有账户自助与个人文章管理权限")
+	if err := global.DB.Where("code = ?", userRole.Code).FirstOrCreate(userRole).Error; err != nil {
 		panic("初始化普通用户角色失败: " + err.Error())
 	}
 
@@ -78,12 +66,8 @@ func initRolesAndUser() {
 			panic("密码加密失败: " + err.Error())
 		}
 
-		newUser := &basic.User{
-			Name:     "superAdmin",
-			Password: password,
-			Status:   "normal",
-			Roles:    []basic.Role{adminRole},
-		}
+		newUser := basic.NewUser("superAdmin", password, "", "", "", "")
+		newUser.Roles = []basic.Role{*adminRole}
 
 		if err := global.DB.Create(newUser).Error; err != nil {
 			panic("初始化超级管理员失败: " + err.Error())

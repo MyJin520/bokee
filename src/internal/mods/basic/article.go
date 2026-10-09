@@ -12,4 +12,18 @@ type Article struct {
 	IsTop     bool   `gorm:"default:false;index" comment:"是否置顶"`
 }
 
+func NewArticle(userID uint, title, content, summary, cover string) *Article {
+	return &Article{
+		UserID:  userID,
+		Title:   title,
+		Content: content,
+		Summary: summary,
+		Cover:   cover,
+	}
+}
+
+func (Article) TableName() string {
+	return "articles"
+}
+
 func (a Article) GetUserID() uint { return a.UserID }

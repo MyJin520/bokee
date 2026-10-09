@@ -58,14 +58,14 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 	var existing basic.Files
 	if err := global.DB.Where("hash = ?", hashStr).First(&existing).Error; err == nil {
 		return &response.FileResp{
-			ID:               existing.ID,
-			Url:              existing.Url,
-			Ext:              existing.Ext,
-			Size:             existing.Size,
+			ID:           existing.ID,
+			Url:          existing.Url,
+			Ext:          existing.Ext,
+			Size:         existing.Size,
 			OriginalName: existing.OriginalName,
-			Hash:             existing.Hash,
-			CreatedAt:        existing.CreatedAt,
-			UpdatedAt:        existing.UpdatedAt,
+			Hash:         existing.Hash,
+			CreatedAt:    existing.CreatedAt,
+			UpdatedAt:    existing.UpdatedAt,
 		}, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		global.Log.Error("查询文件记录失败", zap.Error(err), zap.String("hash", hashStr))
@@ -88,25 +88,19 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 		return nil, fmt.Errorf("上传文件失败，请稍后重试")
 	}
 
-	fileRecord := &basic.Files{
-		Url:              url,
-		Ext:              ext,
-		Size:             int64(len(data)),
-		OriginalName: fileHeader.Filename,
-		Hash:             hashStr,
-	}
+	fileRecord := basic.NewFiles(url, ext, int64(len(data)), fileHeader.Filename, hashStr)
 	if err := global.DB.Create(fileRecord).Error; err != nil {
 		global.Log.Error("文件记录入库失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
 		return nil, fmt.Errorf("文件记录入库失败")
 	}
 	return &response.FileResp{
-		ID:               fileRecord.ID,
-		Url:              fileRecord.Url,
-		Ext:              fileRecord.Ext,
-		Size:             fileRecord.Size,
+		ID:           fileRecord.ID,
+		Url:          fileRecord.Url,
+		Ext:          fileRecord.Ext,
+		Size:         fileRecord.Size,
 		OriginalName: fileRecord.OriginalName,
-		Hash:             fileRecord.Hash,
-		CreatedAt:        fileRecord.CreatedAt,
-		UpdatedAt:        fileRecord.UpdatedAt,
+		Hash:         fileRecord.Hash,
+		CreatedAt:    fileRecord.CreatedAt,
+		UpdatedAt:    fileRecord.UpdatedAt,
 	}, nil
 }

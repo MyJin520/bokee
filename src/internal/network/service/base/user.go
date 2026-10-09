@@ -91,13 +91,7 @@ func (s *UserService) Create(ctx context.Context, req request.UserCreateReq) err
 		return fmt.Errorf("注册失败，密码加密失败请联系管理员")
 	}
 
-	user := &basic.User{
-		Name:     req.Name,
-		Password: hashedPwd,
-		Phone:    req.Phone,
-		Email:    req.Email,
-		Avatar:   req.Avatar,
-	}
+	user := basic.NewUser(req.Name, hashedPwd, req.Phone, req.Email, "", req.Avatar)
 
 	// 新用户绑定普通用户默认角色；角色缺失时不阻断注册，仅记录日志
 	var defaultRole basic.Role

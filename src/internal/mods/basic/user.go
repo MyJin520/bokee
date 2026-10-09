@@ -10,3 +10,18 @@ type User struct {
 	Avatar   string `gorm:"size:255;comment:头像地址"`
 	Roles    []Role `gorm:"many2many:sys_user_roles;constraint:OnDelete:CASCADE"`
 }
+
+func NewUser(name, password, phone, email, status, avatar string) *User {
+	return &User{
+		Name:     name,
+		Password: password,
+		Phone:    phone,
+		Email:    email,
+		Status:   status,
+		Avatar:   avatar,
+	}
+}
+
+func (User) TableName() string {
+	return "users"
+}

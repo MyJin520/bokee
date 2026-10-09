@@ -48,13 +48,7 @@ func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, err
 		status = "normal"
 	}
 
-	role := &basic.Role{
-		Name:   req.Name,
-		Code:   req.Code,
-		Sort:   req.Sort,
-		Status: status,
-		Remark: req.Remark,
-	}
+	role := basic.NewRole(req.Name, req.Code, req.Sort, status, req.Remark)
 
 	if err := global.DB.Create(role).Error; err != nil {
 		global.Log.Error("创建角色失败", zap.Error(err))

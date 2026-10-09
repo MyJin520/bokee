@@ -37,14 +37,8 @@ func (a *ArticleService) DeleteArticleInfoCacheByUser(ctx context.Context, userI
 }
 
 func (a *ArticleService) Create(req request.CreateArticleRequest, userId uint) error {
-	newArticle := basic.Article{
-		UserID:  userId,
-		Title:   req.Title,
-		Content: req.Content,
-		Summary: req.Summary,
-		Cover:   req.Cover,
-	}
-	if err := global.DB.Create(&newArticle).Error; err != nil {
+	newArticle := basic.NewArticle(userId, req.Title, req.Content, req.Summary, req.Cover)
+	if err := global.DB.Create(newArticle).Error; err != nil {
 		global.Log.Error("发表文章失败", zap.Error(err), zap.Uint("userID", userId))
 		return fmt.Errorf("文章发表失败，请稍后重试")
 	}
