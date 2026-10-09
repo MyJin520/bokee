@@ -1,14 +1,11 @@
 package base
 
 import (
-	"bokee/global"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/base"
 	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"strconv"
 )
 
 type RoleApi struct{}
@@ -46,15 +43,12 @@ func (a *RoleApi) Update(c *gin.Context) {
 
 // Delete 删除角色
 func (a *RoleApi) Delete(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		global.Log.Warn("角色ID格式错误", zap.String("id", idStr))
-		response.FailWithRequest("无效的角色ID", c)
+	id, ok := routex.QueryUint(c, "id")
+	if !ok {
 		return
 	}
 
-	if err := roleService.Delete(c.Request.Context(), uint(id)); err != nil {
+	if err := roleService.Delete(c.Request.Context(), id); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -63,15 +57,12 @@ func (a *RoleApi) Delete(c *gin.Context) {
 
 // GetInfo 获取角色详情
 func (a *RoleApi) GetInfo(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		global.Log.Warn("角色ID格式错误", zap.String("id", idStr))
-		response.FailWithRequest("无效的角色ID", c)
+	id, ok := routex.QueryUint(c, "id")
+	if !ok {
 		return
 	}
 
-	resp, err := roleService.GetInfo(c.Request.Context(), uint(id))
+	resp, err := roleService.GetInfo(c.Request.Context(), id)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return

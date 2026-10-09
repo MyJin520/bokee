@@ -1,15 +1,12 @@
 package articles
 
 import (
-	"bokee/global"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/articles"
 	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"strconv"
 )
 
 type ArticleApi struct{}
@@ -45,20 +42,10 @@ func (a *ArticleApi) Update(c *gin.Context) {
 }
 
 func (a *ArticleApi) Delete(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
-		response.FailWithRequest("文章ID不能为空", c)
+	articleID, ok := routex.QueryUint(c, "id")
+	if !ok {
 		return
 	}
-
-	id, err := strconv.ParseUint(idStr, 10, 32) // 转为 uint32 或 uint
-	if err != nil {
-		global.Log.Warn("文章ID格式错误", zap.String("id", idStr))
-		response.FailWithRequest("文章ID格式错误", c)
-		return
-	}
-
-	articleID := uint(id)
 	userId, _ := middleware.GetUserIDFromContext(c)
 	if err := articleService.Delete(c.Request.Context(), articleID, userId); err != nil {
 		response.FailWithMessage(err.Error(), c)
@@ -69,19 +56,10 @@ func (a *ArticleApi) Delete(c *gin.Context) {
 }
 
 func (a *ArticleApi) GetInfo(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
-		response.FailWithRequest("文章ID不能为空", c)
+	articleID, ok := routex.QueryUint(c, "id")
+	if !ok {
 		return
 	}
-
-	id, err := strconv.ParseUint(idStr, 10, 32) // 转为 uint32 或 uint
-	if err != nil {
-		global.Log.Warn("文章ID格式错误", zap.String("id", idStr))
-		response.FailWithRequest("文章ID格式错误", c)
-		return
-	}
-	articleID := uint(id)
 	article, err := articleService.GetInfo(c.Request.Context(), articleID)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)

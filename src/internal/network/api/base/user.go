@@ -10,7 +10,6 @@ import (
 	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type UserApi struct{}
@@ -108,13 +107,10 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 
 	idStr := c.Query("id")
 	if idStr != "" {
-		parsed, parseErr := strconv.ParseUint(idStr, 10, 32)
-		if parseErr != nil {
-			global.Log.Warn("用户ID格式错误", zap.String("id", idStr))
-			response.FailWithRequest("无效的用户ID", c)
+		userID, ok = routex.QueryUint(c, "id")
+		if !ok {
 			return
 		}
-		userID = uint(parsed)
 	} else {
 		userID, ok = middleware.GetUserIDFromContext(c)
 		if !ok {
