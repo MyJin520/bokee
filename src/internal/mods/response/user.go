@@ -13,6 +13,17 @@ type JwtResp struct {
 	Phone  string `json:"phone"`
 }
 
+// NewJwtResp 构建登录响应结构体
+func NewJwtResp(token string, user basic.User) *JwtResp {
+	return &JwtResp{
+		Token:  token,
+		Name:   user.Name,
+		Avatar: user.Avatar,
+		Email:  user.Email,
+		Phone:  user.Phone,
+	}
+}
+
 // UserRoleResp 用户角色响应结构体（脱敏：仅暴露展示所需字段）
 type UserRoleResp struct {
 	ID   uint   `json:"id"`
@@ -47,12 +58,12 @@ type PriModuleResp struct {
 }
 
 // NewUserInfoResp 将用户模型转换为脱敏响应结构（剔除密码等敏感字段）
-func NewUserInfoResp(user basic.User) UserInfoResp {
+func NewUserInfoResp(user basic.User) *UserInfoResp {
 	roles := make([]UserRoleResp, 0, len(user.Roles))
 	for _, role := range user.Roles {
 		roles = append(roles, UserRoleResp{ID: role.ID, Name: role.Name, Code: role.Code})
 	}
-	return UserInfoResp{
+	return &UserInfoResp{
 		ID:        user.ID,
 		Name:      user.Name,
 		Phone:     user.Phone,

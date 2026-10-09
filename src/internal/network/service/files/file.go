@@ -57,16 +57,7 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 
 	var existing basic.Files
 	if err := global.DB.Where("hash = ?", hashStr).First(&existing).Error; err == nil {
-		return &response.FileResp{
-			ID:           existing.ID,
-			Url:          existing.Url,
-			Ext:          existing.Ext,
-			Size:         existing.Size,
-			OriginalName: existing.OriginalName,
-			Hash:         existing.Hash,
-			CreatedAt:    existing.CreatedAt,
-			UpdatedAt:    existing.UpdatedAt,
-		}, nil
+		return response.NewFileResp(existing), nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		global.Log.Error("查询文件记录失败", zap.Error(err), zap.String("hash", hashStr))
 		return nil, fmt.Errorf("查询文件记录失败")
@@ -93,14 +84,5 @@ func (s *FileService) Uploads(fileHeader *multipart.FileHeader) (*response.FileR
 		global.Log.Error("文件记录入库失败", zap.Error(err), zap.String("filename", fileHeader.Filename))
 		return nil, fmt.Errorf("文件记录入库失败")
 	}
-	return &response.FileResp{
-		ID:           fileRecord.ID,
-		Url:          fileRecord.Url,
-		Ext:          fileRecord.Ext,
-		Size:         fileRecord.Size,
-		OriginalName: fileRecord.OriginalName,
-		Hash:         fileRecord.Hash,
-		CreatedAt:    fileRecord.CreatedAt,
-		UpdatedAt:    fileRecord.UpdatedAt,
-	}, nil
+	return response.NewFileResp(*fileRecord), nil
 }

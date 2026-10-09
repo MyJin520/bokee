@@ -150,7 +150,7 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 	}
 
 	// 查库成功后回填缓存
-	resp := response.NewArticleInfoResp(article, user)
+	resp := *response.NewArticleInfoResp(article, user)
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填文章详情缓存失败", zap.Error(err), zap.Uint("articleID", id))
 	}
@@ -177,7 +177,7 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]res
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, response.NewArticleListItemResp(article))
+		list = append(list, *response.NewArticleListItemResp(article))
 	}
 	return list, total, nil
 }
@@ -213,7 +213,7 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]response.Artic
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, response.NewArticleListItemResp(article))
+		list = append(list, *response.NewArticleListItemResp(article))
 	}
 	return list, total, nil
 }

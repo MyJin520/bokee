@@ -55,16 +55,7 @@ func (s *RoleService) Create(req request.RoleCreateReq) (*response.RoleResp, err
 		return nil, fmt.Errorf("创建角色失败，请稍后重试")
 	}
 
-	return &response.RoleResp{
-		ID:        role.ID,
-		Name:      role.Name,
-		Code:      role.Code,
-		Sort:      role.Sort,
-		Status:    role.Status,
-		Remark:    role.Remark,
-		CreatedAt: role.CreatedAt,
-		UpdatedAt: role.UpdatedAt,
-	}, nil
+	return response.NewRoleResp(*role), nil
 }
 
 // Update 更新角色
@@ -185,16 +176,7 @@ func (s *RoleService) GetInfo(ctx context.Context, id uint) (response.RoleResp, 
 		return response.RoleResp{}, fmt.Errorf("查询角色失败，请稍后重试")
 	}
 
-	resp := response.RoleResp{
-		ID:        role.ID,
-		Name:      role.Name,
-		Code:      role.Code,
-		Sort:      role.Sort,
-		Status:    role.Status,
-		Remark:    role.Remark,
-		CreatedAt: role.CreatedAt,
-		UpdatedAt: role.UpdatedAt,
-	}
+	resp := *response.NewRoleResp(role)
 
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填角色信息缓存失败", zap.Error(err), zap.Uint("roleID", id))
@@ -236,16 +218,7 @@ func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64
 	// 转换为响应结构体
 	list := make([]response.RoleResp, 0, len(roles))
 	for _, role := range roles {
-		list = append(list, response.RoleResp{
-			ID:        role.ID,
-			Name:      role.Name,
-			Code:      role.Code,
-			Sort:      role.Sort,
-			Status:    role.Status,
-			Remark:    role.Remark,
-			CreatedAt: role.CreatedAt,
-			UpdatedAt: role.UpdatedAt,
-		})
+		list = append(list, *response.NewRoleResp(role))
 	}
 
 	return list, total, nil
@@ -364,11 +337,7 @@ func groupPriRoutes(policies [][]string) []response.PriModuleResp {
 			order = append(order, module)
 		}
 
-		modules[module] = append(modules[module], response.PriRouteResp{
-			Path:   p[1],
-			Method: p[2],
-			Desc:   meta.Desc,
-		})
+		modules[module] = append(modules[module], *response.NewPriRouteResp(p[1], p[2], meta.Desc))
 	}
 
 	list := make([]response.PriModuleResp, 0, len(order))
@@ -379,10 +348,7 @@ func groupPriRoutes(policies [][]string) []response.PriModuleResp {
 			return cmp.Compare(a.Path, b.Path)
 		})
 
-		list = append(list, response.PriModuleResp{
-			Module: module,
-			Routes: routes,
-		})
+		list = append(list, *response.NewPriModuleResp(module, routes))
 	}
 
 	return list

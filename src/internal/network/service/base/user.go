@@ -151,13 +151,7 @@ func (s *UserService) Login(ctx context.Context, req request.UserLoginReq) (*res
 		return nil, fmt.Errorf("登录失败，请稍后重试")
 	}
 
-	return &response.JwtResp{
-		Token:  token,
-		Name:   user.Name,
-		Avatar: user.Avatar,
-		Email:  user.Email,
-		Phone:  user.Phone,
-	}, nil
+	return response.NewJwtResp(token, user), nil
 }
 
 // Update 更新当前用户资料，落库成功后失效用户信息缓存
@@ -398,7 +392,7 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 
 	users := make([]response.UserInfoResp, 0, len(modelUsers))
 	for _, user := range modelUsers {
-		users = append(users, response.NewUserInfoResp(user))
+		users = append(users, *response.NewUserInfoResp(user))
 	}
 	return users, total, nil
 }
@@ -424,7 +418,7 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
 
-	resp := response.NewUserInfoResp(user)
+	resp := *response.NewUserInfoResp(user)
 	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
 		global.Log.Error("回填用户信息缓存失败", zap.Error(err), zap.Uint("userID", id))
 	}

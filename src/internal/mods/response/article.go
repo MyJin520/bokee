@@ -42,8 +42,8 @@ type ArticleListItemResp struct {
 }
 
 // NewArticleInfoResp 将文章模型转换为详情响应结构体
-func NewArticleInfoResp(article basic.Article, user basic.User) ArticleInfoResp {
-	return ArticleInfoResp{
+func NewArticleInfoResp(article basic.Article, user basic.User) *ArticleInfoResp {
+	return &ArticleInfoResp{
 		ID:        article.ID,
 		Title:     article.Title,
 		Content:   article.Content,
@@ -64,8 +64,8 @@ func NewArticleInfoResp(article basic.Article, user basic.User) ArticleInfoResp 
 }
 
 // NewArticleListItemResp 将文章模型转换为列表响应结构体（不含正文内容）
-func NewArticleListItemResp(article basic.Article) ArticleListItemResp {
-	return ArticleListItemResp{
+func NewArticleListItemResp(article basic.Article) *ArticleListItemResp {
+	return &ArticleListItemResp{
 		ID:        article.ID,
 		Title:     article.Title,
 		Summary:   article.Summary,
