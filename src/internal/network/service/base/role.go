@@ -214,8 +214,6 @@ func (s *RoleService) List(req request.RoleQueryReq) ([]response.RoleResp, int64
 		global.Log.Error("查询角色列表失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询角色列表失败，请稍后重试")
 	}
-	// todo 后续优化
-	// 转换为响应结构体
 	list := make([]response.RoleResp, 0, len(roles))
 	for _, role := range roles {
 		list = append(list, *response.NewRoleResp(role))
