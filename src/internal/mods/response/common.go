@@ -1,6 +1,9 @@
 package response
 
 import (
+	"bokee/global"
+	"bokee/pkg/verifyx"
+	"go.uber.org/zap"
 	"net/http"
 	"net/url"
 
@@ -119,16 +122,17 @@ func DownloadData(data []byte, filename, contentType string, c *gin.Context) {
 	c.Data(http.StatusOK, contentType, data)
 }
 
-//// RecoveryMiddleware 捕获 panic，统一返回错误 JSON
-//func RecoveryMiddleware() gin.HandlerFunc {
-//	return func(c *gin.Context) {
-//		defer func() {
-//			if err := recover(); err != nil {
-//				// 可在这里接入日志库记录错误
-//				Fail(ERROR, "服务器内部错误", c)
-//				c.Abort()
-//			}
-//		}()
-//		c.Next()
-//	}
-//}
+// BindCheckStruct 绑定并校验 JSON 请求体；失败时已写入错误响应并返回 false
+func BindCheckStruct(c *gin.Context, req any) bool {
+	if err := c.ShouldBindJSON(req); err != nil {
+		global.Log.Error("请求参数异常", zap.Error(err))
+		FailWithRequest("请求参数异常", c)
+		return false
+	}
+	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
+		global.Log.Error("请求参数校验失败", zap.String("errMsg", errMsg))
+		FailWithRequest(errMsg, c)
+		return false
+	}
+	return true
+}
