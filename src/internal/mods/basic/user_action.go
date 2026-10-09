@@ -1,7 +1,7 @@
 package basic
 
 type UserAction struct {
-	BaseModel
+	ID         uint   `gorm:"primarykey;autoIncrement;comment:主键ID"`
 	UserID     uint   `gorm:"not null;uniqueIndex:idx_ua_unique;index:idx_user_action;comment:当前用户ID"`
 	TargetID   uint   `gorm:"not null;uniqueIndex:idx_ua_unique;comment:目标ID（文章ID或作者ID）"`
 	TargetType string `gorm:"size:20;not null;uniqueIndex:idx_ua_unique;comment:目标类型(article/author)"`
