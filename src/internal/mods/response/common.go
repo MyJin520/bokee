@@ -1,9 +1,6 @@
 package response
 
 import (
-	"bokee/global"
-	"bokee/pkg/verifyx"
-	"go.uber.org/zap"
 	"net/http"
 	"net/url"
 
@@ -120,19 +117,4 @@ func InlineFile(filepath string, c *gin.Context) {
 func DownloadData(data []byte, filename, contentType string, c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename="+url.QueryEscape(filename))
 	c.Data(http.StatusOK, contentType, data)
-}
-
-// BindCheckStruct 绑定并校验 JSON 请求体；失败时已写入错误响应并返回 false
-func BindCheckStruct(c *gin.Context, req any) bool {
-	if err := c.ShouldBindJSON(req); err != nil {
-		global.Log.Error("请求参数异常", zap.Error(err))
-		FailWithRequest("请求参数异常", c)
-		return false
-	}
-	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
-		global.Log.Error("请求参数校验失败", zap.String("errMsg", errMsg))
-		FailWithRequest(errMsg, c)
-		return false
-	}
-	return true
 }

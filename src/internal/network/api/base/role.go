@@ -5,6 +5,7 @@ import (
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
 	"bokee/internal/network/service/base"
+	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"strconv"
@@ -17,7 +18,7 @@ var roleService = &base.RoleService{}
 // Create 创建角色
 func (a *RoleApi) Create(c *gin.Context) {
 	var req request.RoleCreateReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -32,7 +33,7 @@ func (a *RoleApi) Create(c *gin.Context) {
 // Update 更新角色
 func (a *RoleApi) Update(c *gin.Context) {
 	var req request.RoleUpdateReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -81,7 +82,7 @@ func (a *RoleApi) GetInfo(c *gin.Context) {
 // List 分页获取角色列表
 func (a *RoleApi) List(c *gin.Context) {
 	var req request.RoleQueryReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	req.Normalize()
@@ -97,7 +98,7 @@ func (a *RoleApi) List(c *gin.Context) {
 // Auth 角色授权
 func (a *RoleApi) Auth(c *gin.Context) {
 	var req request.RoleAuthReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -111,7 +112,7 @@ func (a *RoleApi) Auth(c *gin.Context) {
 // GetAllPriRule 获取所有私有路由（保留原有功能）
 func (a *RoleApi) GetAllPriRule(c *gin.Context) {
 	var page request.PageReq
-	if !response.BindCheckStruct(c, &page) {
+	if !routex.BindCheckStruct(c, &page) {
 		return
 	}
 	page.Normalize()

@@ -15,7 +15,7 @@ var userActionService = &base.UserActionService{}
 
 func (u *UserActionApi) Create(c *gin.Context) {
 	var req request.ActionCreateReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
@@ -42,7 +42,7 @@ func (u *UserActionApi) Delete(c *gin.Context) {
 
 func (u *UserActionApi) List(c *gin.Context) {
 	var req request.ActionListReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)

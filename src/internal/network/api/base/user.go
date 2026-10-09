@@ -7,6 +7,7 @@ import (
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/base"
 	"bokee/pkg/jwtx"
+	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"strconv"
@@ -18,7 +19,7 @@ var userService = &base.UserService{}
 
 func (u *UserApi) Create(c *gin.Context) {
 	var req request.UserCreateReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	if err := userService.Create(c.Request.Context(), req); err != nil {
@@ -30,7 +31,7 @@ func (u *UserApi) Create(c *gin.Context) {
 
 func (u *UserApi) Login(c *gin.Context) {
 	var req request.UserLoginReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	jwtResponse, err := userService.Login(c.Request.Context(), req)
@@ -43,7 +44,7 @@ func (u *UserApi) Login(c *gin.Context) {
 
 func (u *UserApi) Update(c *gin.Context) {
 	var req request.UserUpdateReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	currentUserID, _ := middleware.GetUserIDFromContext(c)
@@ -72,7 +73,7 @@ func (u *UserApi) Logout(c *gin.Context) {
 
 func (u *UserApi) ForgetPassword(c *gin.Context) {
 	var req request.ForgetPasswordReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	currentUserID, _ := middleware.GetUserIDFromContext(c)
@@ -86,7 +87,7 @@ func (u *UserApi) ForgetPassword(c *gin.Context) {
 // OperateRoles 用户角色绑定/解绑
 func (u *UserApi) OperateRoles(c *gin.Context) {
 	var req request.UserRoleBindReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 
@@ -133,7 +134,7 @@ func (u *UserApi) GetInfo(c *gin.Context) {
 
 func (u *UserApi) List(c *gin.Context) {
 	var req request.UserListReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	req.Normalize()

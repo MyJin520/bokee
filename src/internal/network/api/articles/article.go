@@ -6,6 +6,7 @@ import (
 	"bokee/internal/mods/response"
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/articles"
+	"bokee/pkg/routex"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"strconv"
@@ -17,7 +18,7 @@ var articleService = &articles.ArticleService{}
 
 func (a *ArticleApi) Create(c *gin.Context) {
 	var req request.CreateArticleRequest
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
@@ -31,7 +32,7 @@ func (a *ArticleApi) Create(c *gin.Context) {
 
 func (a *ArticleApi) Update(c *gin.Context) {
 	var req request.UpdateArticleRequest
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
@@ -92,7 +93,7 @@ func (a *ArticleApi) GetInfo(c *gin.Context) {
 
 func (a *ArticleApi) ListByUser(c *gin.Context) {
 	var req request.UserArticleListReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	req.Normalize()
@@ -107,7 +108,7 @@ func (a *ArticleApi) ListByUser(c *gin.Context) {
 
 func (a *ArticleApi) List(c *gin.Context) {
 	var req request.ArticleQueryListReq
-	if !response.BindCheckStruct(c, &req) {
+	if !routex.BindCheckStruct(c, &req) {
 		return
 	}
 	articleList, total, err := articleService.List(req)

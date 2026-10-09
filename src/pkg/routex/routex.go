@@ -1,7 +1,10 @@
 package routex
 
 import (
+	"bokee/global"
 	"bokee/internal/mods/response"
+	"bokee/pkg/verifyx"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"strings"
@@ -88,4 +91,19 @@ func QueryUint(c *gin.Context, key string) (uint, bool) {
 		return 0, false
 	}
 	return uint(id), true
+}
+
+// BindCheckStruct 绑定并校验 JSON 请求体；失败时已写入错误响应并返回 false
+func BindCheckStruct(c *gin.Context, req any) bool {
+	if err := c.ShouldBindJSON(req); err != nil {
+		global.Log.Error("请求参数异常", zap.Error(err))
+		response.FailWithRequest("请求参数异常", c)
+		return false
+	}
+	if errMsg := verifyx.CheckStruct(req); errMsg != "" {
+		global.Log.Error("请求参数校验失败", zap.String("errMsg", errMsg))
+		response.FailWithRequest(errMsg, c)
+		return false
+	}
+	return true
 }
