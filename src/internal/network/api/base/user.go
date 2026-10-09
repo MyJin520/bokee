@@ -118,7 +118,6 @@ func (u *UserApi) List(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-
 	users, total, err := userService.List(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)

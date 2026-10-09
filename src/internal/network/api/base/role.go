@@ -77,7 +77,6 @@ func (a *RoleApi) List(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-
 	list, total, err := roleService.List(req)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)
@@ -107,7 +106,6 @@ func (a *RoleApi) GetAllPriRule(c *gin.Context) {
 		return
 	}
 	page.Normalize()
-
 	routes, total, err := roleService.GetAllPriRule(page)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)

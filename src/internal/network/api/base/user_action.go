@@ -46,6 +46,7 @@ func (u *UserActionApi) List(c *gin.Context) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
+	req.Normalize()
 	list, total, err := userActionService.List(req, userId)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)

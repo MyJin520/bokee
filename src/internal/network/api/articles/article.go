@@ -75,7 +75,6 @@ func (a *ArticleApi) ListByUser(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-
 	articleList, total, err := articleService.ListByUser(req.UserID, req.PageReq)
 	if err != nil {
 		response.FailWithMessage(err.Error(), c)

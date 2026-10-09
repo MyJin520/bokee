@@ -35,8 +35,6 @@ func (s *UserActionService) Delete(actionId, userId uint) error {
 }
 
 func (s *UserActionService) List(req request.ActionListReq, userId uint) ([]response.UserActionListResponse, int64, error) {
-	req.Normalize()
-
 	switch req.TargetType {
 	case "article":
 		if req.ActionType != "like" && req.ActionType != "bookmark" {
