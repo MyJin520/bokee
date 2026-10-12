@@ -155,7 +155,6 @@ watch(
         </h1>
         <p>这里记录产品、技术与生活里的小发现。慢一点思考，认真留下每一次有用的连接。</p>
         <div class="hero-note">
-          <span class="avatar-stack" aria-hidden="true"><i>林</i><i>默</i><i>客</i></span>
           <span>{{ totalArticles }} 篇文章 · 共 {{ formatNumber(totalViews) }} 次阅读</span>
         </div>
       </div>
@@ -384,34 +383,6 @@ h1 em {
   margin-top: 35px;
   color: var(--muted);
   font-size: 12px;
-}
-
-.avatar-stack {
-  display: flex;
-  padding-left: 8px;
-}
-
-.avatar-stack i {
-  width: 28px;
-  height: 28px;
-  margin-left: -8px;
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--ink);
-  color: #fff;
-  font-size: 10px;
-  font-style: normal;
-}
-
-.avatar-stack i:nth-child(2) {
-  background: var(--coral);
-}
-
-.avatar-stack i:nth-child(3) {
-  background: var(--lime);
-  color: var(--ink);
 }
 
 .hero-image {
