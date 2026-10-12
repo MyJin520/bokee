@@ -279,16 +279,14 @@ watch(
           </div>
         </section>
         <section v-else class="profile-card">
-          <p class="side-title profile-side-title">About the author</p>
+          <p class="side-title profile-side-title">欢迎来到 BOKEE</p>
           <div class="profile-top">
-            <span class="profile-avatar">林</span>
+            <span class="profile-avatar">读者</span>
             <div>
-              <div class="profile-name">林默 / BOKEE</div>
-              <div class="profile-role">产品设计 · 独立开发</div>
+              <div class="profile-name">登录后即可发布文章、收藏与订阅</div>
             </div>
           </div>
-          <p>白天做产品，晚上写代码。相信好的记录，能让复杂的事情重新变得清楚。</p>
-          <router-link class="profile-link" to="/login">登录后开始写作 →</router-link>
+          <router-link class="profile-link" to="/login">登录 / 注册，开始写作 →</router-link>
         </section>
 
         <section class="side-block" id="topics">
