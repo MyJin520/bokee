@@ -1,48 +1,73 @@
-# web
+# BOKEE Web
 
-This template should help get you started developing with Vue 3 in Vite.
+BOKEE 个人博客的前端工程，提供首页、文章归档与详情、写作与编辑、收藏关注、登录注册和个人中心等页面。
 
-## Recommended IDE Setup
+## 技术栈
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- 构建工具：Vite
+- 框架：Vue 3（组合式 API + `<script setup>`）
+- 语言：TypeScript
+- 路由：Vue Router
+- 状态管理：Pinia
+- 样式：原生 CSS（设计令牌集中在 `src/assets/main.css`）
+- 内容渲染：marked + highlight.js
 
-## Recommended Browser Setup
+## 目录结构
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+```
+web/
+├─ public/              静态资源（站点图标）
+├─ src/
+│  ├─ api/              后端接口封装
+│  ├─ assets/           全局样式与设计令牌
+│  ├─ components/       通用组件（页头、提示、确认框、编辑器等）
+│  ├─ composables/      组合式函数
+│  ├─ router/           路由表
+│  ├─ stores/           Pinia 状态
+│  ├─ utils/            格式化与 Markdown 渲染
+│  └─ views/            页面级组件
+├─ index.html           应用入口 HTML
+└─ vite.config.ts       构建与本地代理配置
+```
 
-## Type Support for `.vue` Imports in TS
+## 环境要求
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+Node.js `^22.18.0 || >=24.12.0`。
 
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## 本地开发
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+开发服务器默认运行在 `http://localhost:5173`，并把 `/pub`、`/pri` 前缀的请求代理到后端。
+
+后端地址通过环境变量覆盖，默认 `http://localhost:8888`：
 
 ```sh
-npm run build
+# .env.local
+VITE_API_TARGET=http://localhost:8888
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## 构建与预览
 
 ```sh
-npm run lint
+npm run build     # 类型检查 + 生产构建
+npm run preview   # 本地预览构建产物
 ```
+
+构建产物输出到 `dist/`，可直接交给静态站点服务托管。
+
+## 代码质量
+
+```sh
+npm run lint      # oxlint + eslint
+npm run type-check
+npm run format    # prettier
+```
+
+## 站点图标
+
+`public/favicon.svg`、`public/favicon.ico`、`public/apple-touch-icon.png` 为 BOKEE 品牌图标，
+与页头品牌标（`src/components/AppHeader.vue` 中的 `brand-mark`）保持同一配色和几何比例。
