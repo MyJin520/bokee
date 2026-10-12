@@ -272,7 +272,7 @@ watch(
               <div class="profile-role">{{ userStore.userInfo?.email || '已登录的写作者' }}</div>
             </div>
           </div>
-          <p>在这里管理你的资料、文章，继续未完成的写作。</p>
+          <p>在这里管理你的资料、文章<br />继续未完成的写作</p>
           <div class="profile-links">
             <router-link class="profile-link" to="/profile">个人中心 →</router-link>
             <router-link class="profile-link" to="/my-articles">我的文章 →</router-link>
