@@ -8,11 +8,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// HealthPath 健康检查探针路径
+const HealthPath = "/health"
+
 func Routers() *gin.Engine {
-	engine := gin.Default()
+	engine := gin.New()
+	engine.Use(gin.Recovery())
+	engine.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{HealthPath}}))
 
 	// CORS 跨域中间件（全局）
 	engine.Use(middleware.CORSMiddleware())
+
+	engine.GET(HealthPath, func(c *gin.Context) { c.Status(204) })
 
 	// 公开路由组
 	publicGroup := engine.Group("/pub")
