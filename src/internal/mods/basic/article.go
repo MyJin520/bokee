@@ -8,7 +8,6 @@ type Article struct {
 	Summary   string `gorm:"type:varchar(300)" comment:"文章摘要"`
 	Cover     string `gorm:"type:varchar(500)" comment:"封面图URL"`
 	ViewCount int    `gorm:"default:0" comment:"阅读量"`
-	LikeCount int    `gorm:"default:0" comment:"点赞数"`
 	IsTop     bool   `gorm:"default:false;index" comment:"是否置顶"`
 }
 

@@ -20,7 +20,6 @@ type ArticleInfoResp struct {
 	Summary   string     `json:"summary"`
 	Cover     string     `json:"cover"`
 	ViewCount int        `json:"viewCount"`
-	LikeCount int        `json:"likeCount"`
 	IsTop     bool       `json:"isTop"`
 	UserID    uint       `json:"userId"`
 	Author    AuthorInfo `json:"author"`
@@ -35,7 +34,6 @@ type ArticleListItemResp struct {
 	Summary   string    `json:"summary"`
 	Cover     string    `json:"cover"`
 	ViewCount int       `json:"viewCount"`
-	LikeCount int       `json:"likeCount"`
 	IsTop     bool      `json:"isTop"`
 	UserID    uint      `json:"userId"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -50,7 +48,6 @@ func NewArticleInfoResp(article basic.Article, user basic.User) *ArticleInfoResp
 		Summary:   article.Summary,
 		Cover:     article.Cover,
 		ViewCount: article.ViewCount,
-		LikeCount: article.LikeCount,
 		IsTop:     article.IsTop,
 		UserID:    article.UserID,
 		Author: AuthorInfo{
@@ -71,7 +68,6 @@ func NewArticleListItemResp(article basic.Article) *ArticleListItemResp {
 		Summary:   article.Summary,
 		Cover:     article.Cover,
 		ViewCount: article.ViewCount,
-		LikeCount: article.LikeCount,
 		IsTop:     article.IsTop,
 		UserID:    article.UserID,
 		CreatedAt: article.CreatedAt,
