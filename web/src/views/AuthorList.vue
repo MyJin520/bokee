@@ -62,6 +62,8 @@ async function onFollow(author: UserBrief) {
   reactingId.value = author.id
   try {
     const nowFollowing = await toggleFollow(author.id)
+    // 本地同步粉丝数：关注 +1，取消关注 -1
+    author.followersCount += nowFollowing ? 1 : -1
     ui.toast(nowFollowing ? '已关注 ' + author.name : '已取消关注 ' + author.name)
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -118,6 +120,7 @@ onMounted(async () => {
               <template v-else>{{ initialOf(author.name) }}</template>
             </span>
             <span class="author-name">{{ author.name }}</span>
+            <span class="author-fans">{{ formatNumber(author.followersCount) }} 位粉丝</span>
             <span class="author-hint">查看主页与文章 →</span>
           </router-link>
           <button
@@ -236,6 +239,11 @@ onMounted(async () => {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 20px;
   font-weight: 500;
+}
+
+.author-fans {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .author-main:hover .author-name {

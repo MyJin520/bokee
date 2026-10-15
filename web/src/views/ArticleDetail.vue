@@ -81,8 +81,6 @@ async function onLike() {
   reacting.value = true
   try {
     const nowLiked = await toggleLiked(article.value.id)
-    // 后端已同步点赞数，前端乐观 ±1 保持一致
-    article.value.likeCount = Math.max(0, article.value.likeCount + (nowLiked ? 1 : -1))
     ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -96,6 +94,8 @@ async function onSave() {
   reacting.value = true
   try {
     const nowSaved = await toggleSaved(article.value.id)
+    // 后端已同步收藏数，前端乐观 ±1 保持一致
+    article.value.favoriteCount = Math.max(0, article.value.favoriteCount + (nowSaved ? 1 : -1))
     ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -182,6 +182,8 @@ onBeforeRouteUpdate((to) => {
               <span>{{ formatDate(article.createdAt) }}</span>
               <span class="meta-dot">·</span>
               <span>阅读 {{ formatNumber(article.viewCount) }}</span>
+              <span class="meta-dot">·</span>
+              <span>收藏 {{ formatNumber(article.favoriteCount) }}</span>
             </div>
           </header>
 
@@ -200,7 +202,7 @@ onBeforeRouteUpdate((to) => {
               :disabled="reacting"
               @click="onLike"
             >
-              ♥ 点赞 · {{ formatNumber(article.likeCount) }}
+              {{ isLiked(article.id) ? '♥ 已点赞' : '♡ 点赞' }}
             </button>
             <button
               :class="['reaction', { active: isSaved(article.id) }]"
@@ -208,7 +210,7 @@ onBeforeRouteUpdate((to) => {
               :disabled="reacting"
               @click="onSave"
             >
-              {{ isSaved(article.id) ? '♥ 已收藏' : '♡ 收藏' }}
+              {{ isSaved(article.id) ? '♥ 已收藏' : '♡ 收藏' }} · {{ formatNumber(article.favoriteCount) }}
             </button>
           </div>
 

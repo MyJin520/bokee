@@ -44,8 +44,6 @@ async function onLike(event: MouseEvent) {
   reacting.value = true
   try {
     const nowLiked = await toggleLiked(props.article.id)
-    // 后端已同步点赞数，前端乐观 ±1 保持一致
-    props.article.likeCount = Math.max(0, props.article.likeCount + (nowLiked ? 1 : -1))
     ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -60,6 +58,8 @@ async function onSave(event: MouseEvent) {
   reacting.value = true
   try {
     const nowSaved = await toggleSaved(props.article.id)
+    // 后端已同步收藏数，前端乐观 ±1 保持一致
+    props.article.favoriteCount = Math.max(0, props.article.favoriteCount + (nowSaved ? 1 : -1))
     ui.toast(nowSaved ? '已收藏这篇文章' : '已取消收藏')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -84,7 +84,7 @@ async function onSave(event: MouseEvent) {
       <div class="row-meta">
         <span>{{ formatShortDate(article.createdAt) }}</span>
         <span>阅读 {{ formatNumber(article.viewCount) }}</span>
-        <span>点赞 {{ formatNumber(article.likeCount) }}</span>
+        <span>收藏 {{ formatNumber(article.favoriteCount) }}</span>
       </div>
     </div>
     <div class="row-actions" @click.stop>
@@ -97,7 +97,7 @@ async function onSave(event: MouseEvent) {
           :aria-label="saved ? '取消收藏' : '收藏文章'"
           @click="onSave"
         >
-          {{ saved ? '♥' : '♡' }}
+          {{ saved ? '♥' : '♡' }} <span>{{ formatNumber(article.favoriteCount) }}</span>
         </button>
         <button
           :class="['row-action', { liked }]"
@@ -107,7 +107,7 @@ async function onSave(event: MouseEvent) {
           :aria-label="liked ? '取消点赞' : '点赞文章'"
           @click="onLike"
         >
-          ♥ <span>{{ formatNumber(article.likeCount) }}</span>
+          {{ liked ? '♥' : '♡' }}
         </button>
       </slot>
     </div>

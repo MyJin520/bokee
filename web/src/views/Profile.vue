@@ -5,7 +5,7 @@ import { changePassword, getUserInfo, updateUserInfo } from '@/api/user'
 import { uploadFiles } from '@/api/file'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
-import { formatDate, initialOf } from '@/utils/format'
+import { formatDate, formatNumber, initialOf } from '@/utils/format'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -159,7 +159,8 @@ onMounted(async () => {
       <h1>个人中心</h1>
       <p v-if="userStore.userInfo">
         注册于 {{ formatDate(userStore.userInfo.createdAt) }} ·
-        角色：{{ userStore.userInfo.roles.map((r) => r.name).join('、') || '普通用户' }}
+        角色：{{ userStore.userInfo.roles.map((r) => r.name).join('、') || '普通用户' }} ·
+        粉丝 {{ formatNumber(userStore.userInfo.followersCount) }}
       </p>
     </header>
 

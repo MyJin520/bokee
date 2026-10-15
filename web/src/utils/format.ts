@@ -24,8 +24,9 @@ export function formatMonth(value: string | Date): string {
   return `${date.getFullYear()} 年 ${String(date.getMonth() + 1).padStart(2, '0')} 月`
 }
 
-export function formatNumber(value: number): string {
-  return value.toLocaleString('en-US')
+export function formatNumber(value: number | null | undefined): string {
+  const n = Number(value)
+  return Number.isFinite(n) ? n.toLocaleString('en-US') : '0'
 }
 
 /** 取标题首字符作为无封面时的占位 */

@@ -159,6 +159,7 @@ onMounted(async () => {
                 <th>状态</th>
                 <th>手机号</th>
                 <th>邮箱</th>
+                <th>粉丝</th>
                 <th>注册时间</th>
               </tr>
             </thead>
@@ -189,6 +190,7 @@ onMounted(async () => {
                 </td>
                 <td>{{ user.phone || '—' }}</td>
                 <td>{{ user.email || '—' }}</td>
+                <td class="mono">{{ formatNumber(user.followersCount) }}</td>
                 <td class="cell-muted mono">{{ formatDate(user.createdAt) }}</td>
               </tr>
             </tbody>

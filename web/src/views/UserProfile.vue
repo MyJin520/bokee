@@ -78,6 +78,8 @@ async function onFollow() {
   reacting.value = true
   try {
     const nowFollowing = await toggleFollow(user.value.id)
+    // 本地同步粉丝数：关注 +1，取消关注 -1（数据库已落库，下次进入页面会重新拉取最新值）
+    user.value.followersCount += nowFollowing ? 1 : -1
     ui.toast(nowFollowing ? '已关注 ' + user.value.name : '已取消关注 ' + user.value.name)
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -131,7 +133,8 @@ onBeforeRouteUpdate((to) => {
           <span class="eyebrow">Author profile</span>
           <h1>{{ user.name }}</h1>
           <p class="user-meta">
-            {{ formatDate(user.createdAt) }} 加入 · 共 {{ formatNumber(total) }} 篇公开文章
+            {{ formatDate(user.createdAt) }} 加入 · 共 {{ formatNumber(total) }} 篇公开文章 ·
+            {{ formatNumber(user.followersCount) }} 位粉丝
           </p>
           <div class="user-actions">
             <router-link v-if="isSelf" class="btn btn-outline btn-sm" :to="{ name: 'profile' }">

@@ -20,7 +20,7 @@ export interface ArticleListItem {
   summary: string
   cover: string
   viewCount: number
-  likeCount: number
+  favoriteCount: number
   isTop: boolean
   userId: number
   createdAt: string
@@ -41,7 +41,7 @@ export interface ArticleInfo {
   summary: string
   cover: string
   viewCount: number
-  likeCount: number
+  favoriteCount: number
   isTop: boolean
   userId: number
   author: AuthorInfo
@@ -66,6 +66,7 @@ export interface UserInfo {
   email: string
   status: string
   avatar: string
+  followersCount: number
   roles: UserRole[]
   createdAt: string
   updatedAt: string
@@ -77,11 +78,12 @@ export interface UserRole {
   code: number
 }
 
-/** 用户简要信息（find_users 返回：id / 昵称 / 头像 / 加入时间） */
+/** 用户简要信息（find_users 返回：id / 昵称 / 头像 / 粉丝数 / 加入时间） */
 export interface UserBrief {
   id: number
   name: string
   avatar: string
+  followersCount: number
   createdAt: string
 }
 

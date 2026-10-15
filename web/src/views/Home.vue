@@ -235,7 +235,7 @@ watch(
                 <span class="meta-sep">·</span>
                 <span>阅读 {{ formatNumber(featuredArticle.viewCount) }}</span>
                 <span class="meta-sep">·</span>
-                <span>点赞 {{ formatNumber(featuredArticle.likeCount) }}</span>
+                <span>收藏 {{ formatNumber(featuredArticle.favoriteCount) }}</span>
               </div>
             </div>
           </article>
