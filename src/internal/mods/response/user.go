@@ -78,10 +78,11 @@ func NewUserInfoResp(user basic.User) *UserInfoResp {
 }
 
 type UserFindResp struct {
-	ID        uint      `json:"id"`
-	Name      string    `json:"name"`
-	Avatar    string    `json:"avatar"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID             uint      `json:"id"`
+	Name           string    `json:"name"`
+	Avatar         string    `json:"avatar"`
+	FollowersCount int       `json:"followersCount"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 func NewUserFindResp(user basic.User) *UserFindResp {

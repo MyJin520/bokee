@@ -461,9 +461,15 @@ func (s *UserService) FindUsers(req request.UserFindReq) ([]response.UserFindRes
 		global.Log.Error("查询用户失败", zap.Error(err))
 		return nil, 0, fmt.Errorf("查询用户失败，请稍后重试")
 	}
+
+	// 批量聚合当前页用户的粉丝数，避免 N+1
+	followerCountMap := batchCountFollowers(users)
+
 	resp := make([]response.UserFindResp, 0, len(users))
 	for _, user := range users {
-		resp = append(resp, *response.NewUserFindResp(user))
+		item := response.NewUserFindResp(user)
+		item.FollowersCount = followerCountMap[user.ID]
+		resp = append(resp, *item)
 	}
 	return resp, total, nil
 }
