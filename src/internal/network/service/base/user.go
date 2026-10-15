@@ -427,6 +427,9 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 
 func (s *UserService) FindUsers(req request.UserFindReq) ([]response.UserFindResp, int64, error) {
 	query := global.DB.Model(&basic.User{})
+	if req.ID != 0 {
+		query = query.Where("id = ?", req.ID)
+	}
 	if req.Name != "" {
 		query = query.Where("name LIKE ?", "%"+req.Name+"%")
 	}

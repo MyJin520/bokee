@@ -48,5 +48,6 @@ type UserRoleBindReq struct {
 
 type UserFindReq struct {
 	PageReq
+	ID   uint   `json:"id"`   // 用户ID精确查询（作者主页直达，可选）
 	Name string `json:"name"` // 仅用户名模糊查询
 }
