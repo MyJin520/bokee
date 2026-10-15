@@ -16,6 +16,7 @@ const userStore = useUserStore()
 
 const articles = ref<ArticleListItem[]>([])
 const statsArticles = ref<ArticleListItem[]>([])
+const feedTotal = ref(0)
 const loading = ref(true)
 const errorMessage = ref('')
 const searchTitle = ref('')
@@ -45,7 +46,7 @@ const feedArticles = computed(() =>
   filteredArticles.value.filter((article) => article.id !== featuredArticle.value?.id),
 )
 
-const totalArticles = computed(() => statsArticles.value.length)
+const totalArticles = computed(() => feedTotal.value)
 const totalViews = computed(() => statsArticles.value.reduce((sum, item) => sum + item.viewCount, 0))
 
 interface ArchiveBucket {
@@ -87,19 +88,25 @@ async function loadArticles() {
   errorMessage.value = ''
   try {
     const keyword = searchTitle.value.trim() || undefined
-    const [feed, stats] = await Promise.all([
-      getArticleList({ page: 1, pageSize: 20, title: keyword }),
-      getArticleList({ page: 1, pageSize: 100 }),
-    ])
+    const feed = await getArticleList({ page: 1, pageSize: 20, title: keyword })
     articles.value = feed.list
-    statsArticles.value = stats.list
+    feedTotal.value = feed.total
     featureFailed.value = false
   } catch (error: unknown) {
     errorMessage.value = error instanceof Error ? error.message : '文章加载失败，请稍后重试。'
     articles.value = []
-    statsArticles.value = []
   } finally {
     loading.value = false
+  }
+}
+
+/** 侧栏统计数据：只在首屏拉一次，用于总阅读量与归档分桶，不随搜索变化 */
+async function loadStats() {
+  try {
+    const stats = await getArticleList({ page: 1, pageSize: 100 })
+    statsArticles.value = stats.list
+  } catch {
+    statsArticles.value = []
   }
 }
 
@@ -134,7 +141,10 @@ function subscribeNewsletter() {
   ui.toast('订阅成功，下一封信见')
 }
 
-onMounted(loadArticles)
+onMounted(() => {
+  loadArticles()
+  loadStats()
+})
 
 // 头部搜索按钮：滚动到列表并聚焦搜索框
 watch(
