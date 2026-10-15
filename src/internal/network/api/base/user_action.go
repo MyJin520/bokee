@@ -6,6 +6,7 @@ import (
 	"bokee/internal/network/middleware"
 	"bokee/internal/network/service/base"
 	"bokee/pkg/routex"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,7 +21,7 @@ func (u *UserActionApi) Create(c *gin.Context) {
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
 	req.UserID = userId
-	if err := userActionService.Create(req); err != nil {
+	if err := userActionService.Create(c.Request.Context(), req); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}
@@ -33,7 +34,7 @@ func (u *UserActionApi) Delete(c *gin.Context) {
 		return
 	}
 	userId, _ := middleware.GetUserIDFromContext(c)
-	if err := userActionService.Delete(actionId, userId); err != nil {
+	if err := userActionService.Delete(c.Request.Context(), actionId, userId); err != nil {
 		response.FailWithMessage(err.Error(), c)
 		return
 	}

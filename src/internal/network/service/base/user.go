@@ -10,7 +10,6 @@ import (
 	"bokee/internal/mods/basic"
 	"bokee/internal/mods/request"
 	"bokee/internal/mods/response"
-	"bokee/internal/network/service/articles"
 	"bokee/pkg/cachex"
 	"bokee/pkg/commons"
 	"bokee/pkg/cryptox/hash"
@@ -23,8 +22,6 @@ import (
 )
 
 type UserService struct{}
-
-var articleService = &articles.ArticleService{}
 
 var (
 	// loginLimiter 登录防爆破：10min 窗口内 5 次失败锁定 30min
@@ -196,14 +193,6 @@ func (s *UserService) Update(ctx context.Context, req request.UserUpdateReq, uid
 		global.Log.Warn("更新用户失败：用户不存在或未做任何更改", zap.Uint("userID", uid))
 		return fmt.Errorf("用户不存在或未做任何更改")
 	}
-
-	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", uid))
-
-	_, nameChanged := updates["name"]
-	_, avatarChanged := updates["avatar"]
-	if nameChanged || avatarChanged {
-		articleService.DeleteArticleInfoCacheByUser(ctx, uid)
-	}
 	return nil
 }
 
@@ -309,7 +298,6 @@ func (s *UserService) ForgetPassword(ctx context.Context, req request.ForgetPass
 	}
 
 	resetLimiter.Clear(ctx, operatorID)
-	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", targetUserID))
 	return nil
 }
 
@@ -357,7 +345,6 @@ func (s *UserService) OperateRoles(ctx context.Context, req request.UserRoleBind
 		return "", err
 	}
 
-	cachex.Invalidate(ctx, cachex.Key(cachex.NSUser, "info", req.UserID))
 	return msg, nil
 }
 
@@ -390,24 +377,51 @@ func (s *UserService) List(req request.UserListReq) ([]response.UserInfoResp, in
 		return nil, 0, fmt.Errorf("查询用户列表失败，请稍后重试")
 	}
 
+	// 批量聚合当前页用户的粉丝数（一条 GROUP BY 搞定，避免 N+1）
+	followerCountMap := batchCountFollowers(modelUsers)
+
 	users := make([]response.UserInfoResp, 0, len(modelUsers))
 	for _, user := range modelUsers {
-		users = append(users, *response.NewUserInfoResp(user))
+		resp := response.NewUserInfoResp(user)
+		resp.FollowersCount = followerCountMap[user.ID]
+		users = append(users, *resp)
 	}
 	return users, total, nil
 }
 
-// GetInfo 获取用户信息
-func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoResp, error) {
-	key := cachex.Key(cachex.NSUser, "info", id)
-
-	var cached response.UserInfoResp
-	if err := redisx.GetJSON(ctx, key, &cached); err != nil {
-		global.Log.Error("读取用户信息缓存失败，降级查库", zap.Error(err), zap.Uint("userID", id))
-	} else if cached.ID != 0 {
-		return cached, nil
+// batchCountFollowers 批量统计一批用户的粉丝数，返回 userID -> 粉丝数 的 map
+func batchCountFollowers(users []basic.User) map[uint]int {
+	result := make(map[uint]int, len(users))
+	if len(users) == 0 {
+		return result
+	}
+	ids := make([]uint, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
 	}
 
+	type followerCountRow struct {
+		TargetID uint
+		Count    int
+	}
+	var rows []followerCountRow
+	err := global.DB.Model(&basic.UserAction{}).
+		Select("target_id, COUNT(*) AS count").
+		Where("target_id IN ? AND target_type = ? AND action_type = ?", ids, "author", "follow").
+		Group("target_id").
+		Scan(&rows).Error
+	if err != nil {
+		global.Log.Error("批量统计用户粉丝数失败", zap.Error(err))
+		return result
+	}
+	for _, row := range rows {
+		result[row.TargetID] = row.Count
+	}
+	return result
+}
+
+// GetInfo 获取用户信息
+func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoResp, error) {
 	var user basic.User
 	if err := global.DB.Preload("Roles").First(&user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -418,10 +432,14 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 		return response.UserInfoResp{}, fmt.Errorf("查询用户失败，请稍后重试")
 	}
 
+	// 查询该用户的粉丝数
+	var followersCount int64
+	global.DB.Model(&basic.UserAction{}).
+		Where("target_id = ? AND target_type = ? AND action_type = ?", id, "author", "follow").
+		Count(&followersCount)
+
 	resp := *response.NewUserInfoResp(user)
-	if err := redisx.SetJSON(ctx, key, resp, 30*time.Minute); err != nil {
-		global.Log.Error("回填用户信息缓存失败", zap.Error(err), zap.Uint("userID", id))
-	}
+	resp.FollowersCount = int(followersCount)
 	return resp, nil
 }
 
