@@ -10,6 +10,7 @@ import (
 	"bokee/internal/mods/response"
 	"bokee/pkg/commons"
 	"errors"
+
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -119,8 +120,15 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 		Where("target_id = ? AND target_type = ? AND action_type = ?", id, "article", "bookmark").
 		Count(&favoriteCount)
 
+	// 查询该文章的点赞数
+	var likeCount int64
+	global.DB.Model(&basic.UserAction{}).
+		Where("target_id = ? AND target_type = ? AND action_type = ?", id, "article", "like").
+		Count(&likeCount)
+
 	resp := *response.NewArticleInfoResp(article, user)
 	resp.FavoriteCount = int(favoriteCount)
+	resp.LikeCount = int(likeCount)
 	return resp, nil
 }
 
@@ -143,11 +151,13 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]res
 	}
 
 	favoriteCountMap := batchCountFavorites(articles)
+	likeCountMap := batchCountLikes(articles)
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
 		resp := response.NewArticleListItemResp(article)
 		resp.FavoriteCount = favoriteCountMap[article.ID]
+		resp.LikeCount = likeCountMap[article.ID]
 		list = append(list, *resp)
 	}
 	return list, total, nil
@@ -183,11 +193,13 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]response.Artic
 	}
 
 	favoriteCountMap := batchCountFavorites(articles)
+	likeCountMap := batchCountLikes(articles)
 
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
 		resp := response.NewArticleListItemResp(article)
 		resp.FavoriteCount = favoriteCountMap[article.ID]
+		resp.LikeCount = likeCountMap[article.ID]
 		list = append(list, *resp)
 	}
 	return list, total, nil
@@ -216,6 +228,37 @@ func batchCountFavorites(articles []basic.Article) map[uint]int {
 		Scan(&rows).Error
 	if err != nil {
 		global.Log.Error("批量统计文章收藏数失败", zap.Error(err))
+		return result
+	}
+	for _, row := range rows {
+		result[row.TargetID] = row.Count
+	}
+	return result
+}
+
+// batchCountLikes 批量统计一批文章的点赞数，返回 articleID -> 点赞数 的 map
+func batchCountLikes(articles []basic.Article) map[uint]int {
+	result := make(map[uint]int, len(articles))
+	if len(articles) == 0 {
+		return result
+	}
+	ids := make([]uint, 0, len(articles))
+	for _, a := range articles {
+		ids = append(ids, a.ID)
+	}
+
+	type likeCountRow struct {
+		TargetID uint
+		Count    int
+	}
+	var rows []likeCountRow
+	err := global.DB.Model(&basic.UserAction{}).
+		Select("target_id, COUNT(*) AS count").
+		Where("target_id IN ? AND target_type = ? AND action_type = ?", ids, "article", "like").
+		Group("target_id").
+		Scan(&rows).Error
+	if err != nil {
+		global.Log.Error("批量统计文章点赞数失败", zap.Error(err))
 		return result
 	}
 	for _, row := range rows {

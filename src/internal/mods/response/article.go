@@ -21,6 +21,7 @@ type ArticleInfoResp struct {
 	Cover         string     `json:"cover"`
 	ViewCount     int        `json:"viewCount"`
 	FavoriteCount int        `json:"favoriteCount"`
+	LikeCount     int        `json:"likeCount"`
 	IsTop         bool       `json:"isTop"`
 	UserID        uint       `json:"userId"`
 	Author        AuthorInfo `json:"author"`
@@ -36,6 +37,7 @@ type ArticleListItemResp struct {
 	Cover         string    `json:"cover"`
 	ViewCount     int       `json:"viewCount"`
 	FavoriteCount int       `json:"favoriteCount"`
+	LikeCount     int       `json:"likeCount"`
 	IsTop         bool      `json:"isTop"`
 	UserID        uint      `json:"userId"`
 	CreatedAt     time.Time `json:"createdAt"`
