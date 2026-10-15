@@ -8,6 +8,7 @@ import (
 	"bokee/internal/network/service/base"
 	"bokee/pkg/jwtx"
 	"bokee/pkg/routex"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -124,4 +125,18 @@ func (u *UserApi) List(c *gin.Context) {
 		return
 	}
 	response.OkWithPage(users, total, req.Page, req.PageSize, "获取用户列表成功", c)
+}
+
+func (u *UserApi) FindUsers(c *gin.Context) {
+	var req request.UserFindReq
+	if !routex.BindCheckStruct(c, &req) {
+		return
+	}
+	req.Normalize()
+	users, total, err := userService.FindUsers(req)
+	if err != nil {
+		response.FailWithMessage(err.Error(), c)
+		return
+	}
+	response.OkWithPage(users, total, req.Page, req.PageSize, "查询用户成功", c)
 }

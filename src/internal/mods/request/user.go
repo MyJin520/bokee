@@ -45,3 +45,8 @@ type UserRoleBindReq struct {
 	RoleIDs []uint `json:"roleIds" label:"角色ID列表" validate:"required,min=1"`           // 角色ID列表（传单个角色ID也使用数组格式）
 	Operate string `json:"operate" label:"操作行为" validate:"required,oneof=bind unbind"` // 绑定或解绑 bind || unbind
 }
+
+type UserFindReq struct {
+	PageReq
+	Name string `json:"name"` // 仅用户名模糊查询
+}

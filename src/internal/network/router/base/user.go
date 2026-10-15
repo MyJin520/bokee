@@ -3,6 +3,7 @@ package base
 import (
 	"bokee/internal/network/api/base"
 	"bokee/pkg/routex"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,6 +24,7 @@ func InitUserRouter(publicGroup *gin.RouterGroup, privateGroup *gin.RouterGroup)
 		userPrivate.GET("/get_info", "获取用户信息", userApi.GetInfo)               // 获取用户信息
 		userPrivate.POST("/forget_password", "忘记密码", userApi.ForgetPassword)  // 忘记密码
 		userPrivate.POST("/operate_roles", "用户角色绑定/解绑", userApi.OperateRoles) // 用户角色绑定/解绑
-		userPrivate.POST("/list", "用户列表", userApi.List)                       // 用户列表
+		userPrivate.POST("/list", "用户列表", userApi.List)                       // 用户列表【仅超管】
+		userPrivate.POST("/find_users", "查询用户", userApi.FindUsers)            // 查询用户【用户间查询】
 	}
 }

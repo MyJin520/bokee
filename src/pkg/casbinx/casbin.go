@@ -3,14 +3,15 @@ package casbinx
 import (
 	"bokee/global"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/casbin/casbin/v3"
 	"github.com/casbin/casbin/v3/model"
 	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 var (
@@ -278,6 +279,7 @@ var defaultUserRoleRules = [][2]string{
 	{"/pri/user/update", "PUT"},
 	{"/pri/user/logout", "GET"},
 	{"/pri/user/forget_password", "POST"},
+	{"/pri/user/find_users", "POST"},
 	{"/pri/article/create", "POST"},
 	{"/pri/article/update", "PUT"},
 	{"/pri/article/delete", "DELETE"},

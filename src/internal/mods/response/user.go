@@ -75,3 +75,17 @@ func NewUserInfoResp(user basic.User) *UserInfoResp {
 		UpdatedAt: user.UpdatedAt,
 	}
 }
+
+type UserFindResp struct {
+	ID     uint   `json:"id"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+}
+
+func NewUserFindResp(user basic.User) *UserFindResp {
+	return &UserFindResp{
+		ID:     user.ID,
+		Name:   user.Name,
+		Avatar: user.Avatar,
+	}
+}

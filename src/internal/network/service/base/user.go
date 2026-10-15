@@ -424,3 +424,25 @@ func (s *UserService) GetInfo(ctx context.Context, id uint) (response.UserInfoRe
 	}
 	return resp, nil
 }
+
+func (s *UserService) FindUsers(req request.UserFindReq) ([]response.UserFindResp, int64, error) {
+	query := global.DB.Model(&basic.User{})
+	if req.Name != "" {
+		query = query.Where("name LIKE ?", "%"+req.Name+"%")
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		global.Log.Error("统计用户总数失败", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询用户失败，请稍后重试")
+	}
+	var users []basic.User
+	if err := query.Offset(req.Offset()).Limit(req.PageSize).Find(&users).Error; err != nil {
+		global.Log.Error("查询用户失败", zap.Error(err))
+		return nil, 0, fmt.Errorf("查询用户失败，请稍后重试")
+	}
+	resp := make([]response.UserFindResp, 0, len(users))
+	for _, user := range users {
+		resp = append(resp, *response.NewUserFindResp(user))
+	}
+	return resp, total, nil
+}
