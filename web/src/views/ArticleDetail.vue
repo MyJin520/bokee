@@ -81,6 +81,8 @@ async function onLike() {
   reacting.value = true
   try {
     const nowLiked = await toggleLiked(article.value.id)
+    // 本地同步点赞数：点赞 +1，取消 -1
+    article.value.likeCount = Math.max(0, article.value.likeCount + (nowLiked ? 1 : -1))
     ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -183,6 +185,8 @@ onBeforeRouteUpdate((to) => {
               <span class="meta-dot">·</span>
               <span>阅读 {{ formatNumber(article.viewCount) }}</span>
               <span class="meta-dot">·</span>
+              <span>喜欢 {{ formatNumber(article.likeCount) }}</span>
+              <span class="meta-dot">·</span>
               <span>收藏 {{ formatNumber(article.favoriteCount) }}</span>
             </div>
           </header>
@@ -202,7 +206,7 @@ onBeforeRouteUpdate((to) => {
               :disabled="reacting"
               @click="onLike"
             >
-              {{ isLiked(article.id) ? '♥ 已点赞' : '♡ 点赞' }}
+              {{ isLiked(article.id) ? '♥ 已点赞' : '♡ 点赞' }} · {{ formatNumber(article.likeCount) }}
             </button>
             <button
               :class="['reaction', { active: isSaved(article.id) }]"

@@ -44,6 +44,8 @@ async function onLike(event: MouseEvent) {
   reacting.value = true
   try {
     const nowLiked = await toggleLiked(props.article.id)
+    // 本地同步点赞数：点赞 +1，取消 -1
+    props.article.likeCount = Math.max(0, props.article.likeCount + (nowLiked ? 1 : -1))
     ui.toast(nowLiked ? '已点赞这篇文章' : '已取消点赞')
   } catch (error: unknown) {
     ui.toastError(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -107,7 +109,7 @@ async function onSave(event: MouseEvent) {
           :aria-label="liked ? '取消点赞' : '点赞文章'"
           @click="onLike"
         >
-          {{ liked ? '♥' : '♡' }}
+          {{ liked ? '♥' : '♡' }} <span>{{ formatNumber(article.likeCount) }}</span>
         </button>
       </slot>
     </div>

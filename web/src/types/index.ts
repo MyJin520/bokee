@@ -21,6 +21,7 @@ export interface ArticleListItem {
   cover: string
   viewCount: number
   favoriteCount: number
+  likeCount: number
   isTop: boolean
   userId: number
   createdAt: string
@@ -42,6 +43,7 @@ export interface ArticleInfo {
   cover: string
   viewCount: number
   favoriteCount: number
+  likeCount: number
   isTop: boolean
   userId: number
   author: AuthorInfo
