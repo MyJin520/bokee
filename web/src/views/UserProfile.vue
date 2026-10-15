@@ -2,11 +2,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { getUserArticleList } from '@/api/article'
-import { getUserInfo } from '@/api/user'
+import { findUsers } from '@/api/user'
 import { useReactions } from '@/composables/useReactions'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
-import type { ArticleListItem, UserInfo } from '@/types'
+import type { ArticleListItem, UserBrief } from '@/types'
 import ArticleRow from '@/components/ArticleRow.vue'
 import { formatDate, formatNumber, initialOf } from '@/utils/format'
 
@@ -18,7 +18,7 @@ const { isFollowed, toggleFollow, ensureReactions } = useReactions()
 
 const pageSize = 8
 
-const user = ref<UserInfo | null>(null)
+const user = ref<UserBrief | null>(null)
 const articles = ref<ArticleListItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -56,7 +56,11 @@ async function load(id: number) {
   errorMessage.value = ''
   page.value = 1
   try {
-    user.value = await getUserInfo(id)
+    // 只用 find_users 的公开字段（id / 昵称 / 头像），无需读取他人资料接口
+    const res = await findUsers({ id, page: 1, pageSize: 1 })
+    const author = res.list[0]
+    if (!author) throw new Error('用户不存在')
+    user.value = author
     loadArticles(id)
   } catch (error: unknown) {
     user.value = null
@@ -126,7 +130,9 @@ onBeforeRouteUpdate((to) => {
         <div class="user-intro">
           <span class="eyebrow">Author profile</span>
           <h1>{{ user.name }}</h1>
-          <p class="user-meta">{{ formatDate(user.createdAt) }} 加入 · 共 {{ formatNumber(total) }} 篇公开文章</p>
+          <p class="user-meta">
+            {{ formatDate(user.createdAt) }} 加入 · 共 {{ formatNumber(total) }} 篇公开文章
+          </p>
           <div class="user-actions">
             <router-link v-if="isSelf" class="btn btn-outline btn-sm" :to="{ name: 'profile' }">
               编辑个人资料

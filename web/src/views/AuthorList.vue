@@ -4,7 +4,7 @@ import { findUsers } from '@/api/user'
 import { useReactions } from '@/composables/useReactions'
 import { useUserStore } from '@/stores/user'
 import { useUiStore } from '@/stores/ui'
-import type { AuthorInfo } from '@/types'
+import type { UserBrief } from '@/types'
 import { formatNumber, initialOf } from '@/utils/format'
 
 const userStore = useUserStore()
@@ -13,7 +13,7 @@ const { isFollowed, toggleFollow, ensureReactions } = useReactions()
 
 const pageSize = 12
 
-const authors = ref<AuthorInfo[]>([])
+const authors = ref<UserBrief[]>([])
 const total = ref(0)
 const page = ref(1)
 const keyword = ref('')
@@ -57,7 +57,7 @@ function changePage(next: number) {
 }
 
 /** 关注 / 取消关注作者；本人不可关注自己 */
-async function onFollow(author: AuthorInfo) {
+async function onFollow(author: UserBrief) {
   if (author.id === userStore.userInfo?.id || reactingId.value) return
   reactingId.value = author.id
   try {

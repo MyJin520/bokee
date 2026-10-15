@@ -77,6 +77,14 @@ export interface UserRole {
   code: number
 }
 
+/** 用户简要信息（find_users 返回：id / 昵称 / 头像 / 加入时间） */
+export interface UserBrief {
+  id: number
+  name: string
+  avatar: string
+  createdAt: string
+}
+
 /** 文件上传记录 */
 export interface UploadedFile {
   id: number
