@@ -1,5 +1,5 @@
 import { http } from './request'
-import type { JwtResp, PageData, UserInfo } from '@/types'
+import type { AuthorInfo, JwtResp, PageData, UserInfo } from '@/types'
 
 /** 用户登录 */
 export function login(userName: string, password: string) {
@@ -16,9 +16,9 @@ export function register(data: {
   return http.post<string>('/pub/user/create', data)
 }
 
-/** 获取当前用户信息（需登录） */
-export function getUserInfo() {
-  return http.get<UserInfo>('/pri/user/get_info')
+/** 获取用户信息（需登录）；传入 id 时查询指定用户，未传时返回当前登录用户 */
+export function getUserInfo(id?: number) {
+  return http.get<UserInfo>('/pri/user/get_info', id ? { id } : undefined)
 }
 
 /** 更新用户信息（需登录） */
@@ -39,6 +39,19 @@ export function logout() {
 /** 修改密码（需登录，普通用户需提供旧密码） */
 export function changePassword(data: { oldPassword: string; newPassword: string }) {
   return http.post<string>('/pri/user/forget_password', data)
+}
+
+/**
+ * 查询其他用户（需登录，普通用户即可调用）
+ * 仅支持用户名模糊搜索，返回脱敏的用户简要信息
+ */
+export function findUsers(params: { name?: string; page?: number; pageSize?: number }) {
+  // 后端以 JSON 请求体绑定参数，缺省字段需显式传空串，避免请求体解析失败
+  return http.post<PageData<AuthorInfo>>('/pri/user/find_users', {
+    name: params.name ?? '',
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 12,
+  })
 }
 
 /**

@@ -15,14 +15,32 @@ const displayName = computed(
 )
 const avatarUrl = computed(() => userStore.userInfo?.avatar || '')
 
-const navItems = [
+interface NavItem {
+  label: string
+  to: string
+  /** 需登录才展示的导航项（如作者发现依赖私有接口） */
+  requiresAuth?: boolean
+  match: (path: string) => boolean
+}
+
+const navItems: NavItem[] = [
   { label: '首页', to: '/', match: (path: string) => path === '/' },
   { label: '文章', to: '/articles', match: (path: string) => path.startsWith('/article') },
+  {
+    label: '作者',
+    to: '/authors',
+    requiresAuth: true,
+    match: (path: string) => path.startsWith('/authors'),
+  },
   { label: '专题', to: '/#topics', match: () => false },
   { label: '关于', to: '/#about', match: () => false },
 ]
 
-function isActive(item: (typeof navItems)[number]) {
+const visibleNavItems = computed(() =>
+  navItems.filter((item) => !item.requiresAuth || userStore.isLoggedIn),
+)
+
+function isActive(item: NavItem) {
   return item.match(route.path)
 }
 
@@ -75,7 +93,7 @@ async function logout() {
 
       <nav class="desktop-nav" aria-label="主导航">
         <button
-          v-for="item in navItems"
+          v-for="item in visibleNavItems"
           :key="item.label"
           :class="['nav-link', { active: isActive(item) }]"
           type="button"
@@ -114,7 +132,7 @@ async function logout() {
 
     <nav v-if="menuOpen" class="mobile-nav" aria-label="移动端导航">
       <button
-        v-for="item in navItems"
+        v-for="item in visibleNavItems"
         :key="item.label"
         :class="{ active: isActive(item) }"
         type="button"

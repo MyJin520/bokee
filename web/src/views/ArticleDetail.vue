@@ -225,7 +225,12 @@ onBeforeRouteUpdate((to) => {
               <img v-if="article.author?.avatar" :src="article.author.avatar" :alt="article.author.name" />
               <template v-else>{{ initialOf(article.author?.name || '作') }}</template>
             </span>
-            <div class="author-name">{{ article.author?.name || '匿名作者' }}</div>
+            <router-link
+              class="author-name"
+              :to="{ name: 'user-profile', params: { id: article.userId } }"
+            >
+              {{ article.author?.name || '匿名作者' }}
+            </router-link>
             <p class="author-bio">认真记录，慢慢表达。这里是 TA 的公开文章与思考。</p>
             <button
               v-if="!isOwner"
@@ -427,8 +432,13 @@ onBeforeRouteUpdate((to) => {
 }
 
 .author-name {
+  display: block;
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 21px;
+}
+
+.author-name:hover {
+  color: var(--lime);
 }
 
 .author-bio {

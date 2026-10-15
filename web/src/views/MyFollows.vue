@@ -9,7 +9,7 @@ import { formatNumber } from '@/utils/format'
 
 const userStore = useUserStore()
 const ui = useUiStore()
-const { toggleFollow } = useReactions()
+const { toggleFollow, ensureReactions } = useReactions()
 
 const items = ref<UserActionListItem[]>([])
 const total = ref(0)
@@ -62,6 +62,8 @@ async function unfollow(item: UserActionListItem) {
 onMounted(async () => {
   // 页面直接刷新进入时，等待根组件恢复登录态后再加载
   if (!userStore.userInfo && userStore.isLoggedIn) await userStore.restoreSession()
+  // 取消关注依赖关注映射，先同步再渲染，避免误判为「未关注」而变成新增关注
+  await ensureReactions().catch(() => {})
   load()
 })
 </script>
@@ -88,7 +90,7 @@ onMounted(async () => {
         <li v-for="item in items" :key="item.actionId">
           <router-link
             class="follows-main"
-            :to="`/articles?user=${encodeURIComponent(item.targetTitle || '')}`"
+            :to="{ name: 'user-profile', params: { id: item.targetId } }"
           >
             <span class="follows-avatar">{{ (item.targetTitle || '?').slice(0, 1) }}</span>
             <span class="follows-name">{{ item.targetTitle || '未命名作者' }}</span>
@@ -112,7 +114,9 @@ onMounted(async () => {
     <div v-else class="state-block empty-state">
       <p class="state-title">还没有关注</p>
       <p>读到喜欢的文章，关注它的作者，新文章会第一时间看到。</p>
-      <router-link class="btn btn-coral" to="/articles" style="margin-top: 18px">去文章列表看看 →</router-link>
+      <router-link class="btn btn-coral" :to="{ name: 'authors' }" style="margin-top: 18px">
+        去发现作者 →
+      </router-link>
     </div>
   </div>
 </template>
