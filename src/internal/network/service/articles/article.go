@@ -113,7 +113,15 @@ func (a *ArticleService) GetInfo(ctx context.Context, id uint) (response.Article
 		global.Log.Warn("查询文章作者信息失败", zap.Error(err), zap.Uint("userID", article.UserID))
 	}
 
-	return *response.NewArticleInfoResp(article, user), nil
+	// 查询该文章的收藏数
+	var favoriteCount int64
+	global.DB.Model(&basic.UserAction{}).
+		Where("target_id = ? AND target_type = ? AND action_type = ?", id, "article", "bookmark").
+		Count(&favoriteCount)
+
+	resp := *response.NewArticleInfoResp(article, user)
+	resp.FavoriteCount = int(favoriteCount)
+	return resp, nil
 }
 
 func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]response.ArticleListItemResp, int64, error) {
@@ -134,9 +142,13 @@ func (a *ArticleService) ListByUser(userId uint, pageReq request.PageReq) ([]res
 		return nil, 0, fmt.Errorf("查询用户文章列表失败，请稍后重试")
 	}
 
+	favoriteCountMap := batchCountFavorites(articles)
+
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, *response.NewArticleListItemResp(article))
+		resp := response.NewArticleListItemResp(article)
+		resp.FavoriteCount = favoriteCountMap[article.ID]
+		list = append(list, *resp)
 	}
 	return list, total, nil
 }
@@ -170,9 +182,44 @@ func (a *ArticleService) List(req request.ArticleQueryListReq) ([]response.Artic
 		return nil, 0, fmt.Errorf("查询文章列表失败，请稍后重试")
 	}
 
+	favoriteCountMap := batchCountFavorites(articles)
+
 	list := make([]response.ArticleListItemResp, 0, len(articles))
 	for _, article := range articles {
-		list = append(list, *response.NewArticleListItemResp(article))
+		resp := response.NewArticleListItemResp(article)
+		resp.FavoriteCount = favoriteCountMap[article.ID]
+		list = append(list, *resp)
 	}
 	return list, total, nil
+}
+
+// batchCountFavorites 批量统计一批文章的收藏数，返回 articleID -> 收藏数 的 map
+func batchCountFavorites(articles []basic.Article) map[uint]int {
+	result := make(map[uint]int, len(articles))
+	if len(articles) == 0 {
+		return result
+	}
+	ids := make([]uint, 0, len(articles))
+	for _, a := range articles {
+		ids = append(ids, a.ID)
+	}
+
+	type favoriteCountRow struct {
+		TargetID uint
+		Count    int
+	}
+	var rows []favoriteCountRow
+	err := global.DB.Model(&basic.UserAction{}).
+		Select("target_id, COUNT(*) AS count").
+		Where("target_id IN ? AND target_type = ? AND action_type = ?", ids, "article", "bookmark").
+		Group("target_id").
+		Scan(&rows).Error
+	if err != nil {
+		global.Log.Error("批量统计文章收藏数失败", zap.Error(err))
+		return result
+	}
+	for _, row := range rows {
+		result[row.TargetID] = row.Count
+	}
+	return result
 }
