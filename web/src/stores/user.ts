@@ -3,12 +3,19 @@ import { defineStore } from 'pinia'
 import { login as loginApi, logout as logoutApi, getUserInfo } from '@/api/user'
 import type { UserInfo } from '@/types'
 
+/** 超级管理员角色标识码，与后端 global.SuperRoleCode 保持一致 */
+const SUPER_ROLE_CODE = 1
+
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref<UserInfo | null>(null)
 
   const isLoggedIn = computed(() => !!token.value)
   const userName = computed(() => userInfo.value?.name || '')
+  /** 是否为超级管理员（决定用户管理等后台入口是否可见） */
+  const isAdmin = computed(() =>
+    (userInfo.value?.roles ?? []).some((role) => role.code === SUPER_ROLE_CODE),
+  )
 
   /** 登录 */
   async function login(userName: string, password: string) {
@@ -52,5 +59,5 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  return { token, userInfo, isLoggedIn, userName, login, doLogout, restoreSession }
+  return { token, userInfo, isLoggedIn, userName, isAdmin, login, doLogout, restoreSession }
 })

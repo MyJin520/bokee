@@ -225,6 +225,9 @@ onMounted(async () => {
           <button class="quick-row" type="button" @click="router.push('/my-articles')">📄 我的文章</button>
           <button class="quick-row" type="button" @click="router.push('/my/bookmarks')">♥ 我的收藏</button>
           <button class="quick-row" type="button" @click="router.push('/my/follows')">＋ 我的关注</button>
+          <button v-if="userStore.isAdmin" class="quick-row" type="button" @click="router.push('/users')">
+            👥 用户管理
+          </button>
           <button class="quick-row danger" type="button" @click="logout">退出登录</button>
         </section>
       </div>

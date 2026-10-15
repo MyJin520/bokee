@@ -128,6 +128,7 @@ async function logout() {
         <button type="button" @click="go('/my/bookmarks')">我的收藏</button>
         <button type="button" @click="go('/my/follows')">我的关注</button>
         <button type="button" @click="go('/profile')">个人中心</button>
+        <button v-if="userStore.isAdmin" type="button" @click="go('/users')">用户管理</button>
         <button type="button" @click="logout">退出登录</button>
       </template>
       <template v-else>
